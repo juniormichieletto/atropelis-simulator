@@ -1,5 +1,6 @@
 import React from 'react';
 import './MenuView.css';
+import backgroundImage from '../../../initial_screen.png';
 
 interface MenuViewProps {
   userName: string;
@@ -15,7 +16,7 @@ export const MenuView: React.FC<MenuViewProps> = ({
   onChangeName,
 }) => {
   return (
-    <div className="menu-container">
+    <div className="menu-container" style={{ backgroundImage: `url(${backgroundImage})` }}>
       <div className="menu-card">
         <h1>ATROPELIS SIMULATOR</h1>
         <p className="welcome-text">WELCOME, <span className="nickname">{userName}</span>!</p>
