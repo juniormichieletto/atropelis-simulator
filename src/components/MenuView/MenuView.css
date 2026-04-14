@@ -3,6 +3,7 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   background-color: #000;
   background-size: cover;
@@ -86,6 +87,23 @@ h1 {
 }
 
 @media (max-width: 600px) {
-    h1 { font-size: 1.2rem; }
-    .menu-btn { font-size: 0.7rem; padding: 1rem; }
+    .menu-card {
+        padding: 1.5rem;
+        width: 90%;
+        box-shadow: 6px 6px 0px #d9534f;
+    }
+    h1 { 
+        font-size: 1.2rem; 
+        margin-bottom: 1.5rem;
+    }
+    .welcome-text {
+        margin-bottom: 1.5rem;
+    }
+    .menu-buttons {
+        gap: 1.2rem;
+    }
+    .menu-btn { 
+        font-size: 0.7rem; 
+        padding: 1.2rem; 
+    }
 }
