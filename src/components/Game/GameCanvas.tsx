@@ -169,8 +169,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       {showControls && (
         <div className="controls-overlay" onClick={() => setShowControls(false)}>
           <div className="controls-card">
-            <h3>DESKTOP CONTROLS</h3>
+            <h3>GAME INSTRUCTIONS</h3>
+            <p className="controls-title">DESKTOP CONTROLS</p>
             <p><strong>ARROW KEYS</strong> or <strong>WASD</strong> TO DRIVE</p>
+            
+            <div className="scoring-guide">
+              <p className="scoring-title">SCORING GUIDE</p>
+              <div className="score-item person">PERSON: <span className="pts">+1 PT</span></div>
+              <div className="score-item bike">BIKE: <span className="pts">+2 PTS</span></div>
+              <div className="score-item motorcycle">MOTORCYCLE: <span className="pts">+5 PTS</span></div>
+              <div className="score-item car">OTHER CAR: <span className="pts penalty">-5 PTS</span></div>
+            </div>
+
             <p className="hint">Tap anywhere to close</p>
           </div>
         </div>
