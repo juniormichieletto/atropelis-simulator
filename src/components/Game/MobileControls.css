@@ -1,0 +1,51 @@
+.mobile-controls {
+  position: absolute;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 40px;
+  pointer-events: none;
+}
+
+.d-pad, .pedals {
+  display: flex;
+  gap: 15px;
+  pointer-events: auto;
+}
+
+.control-btn {
+  width: 70px;
+  height: 70px;
+  background-color: rgba(255, 255, 255, 0.3);
+  border: 4px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  font-family: 'Courier New', Courier, monospace;
+  font-weight: bold;
+  font-size: 14px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.control-btn.active {
+  background-color: rgba(255, 255, 255, 0.7);
+  transform: scale(0.95);
+}
+
+.pedals .control-btn {
+  width: 90px;
+  height: 90px;
+  border-radius: 15px;
+}
+
+.forward {
+  background-color: rgba(92, 184, 92, 0.4);
+}
+
+.backward {
+  background-color: rgba(217, 83, 79, 0.4);
+}
