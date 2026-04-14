@@ -36,6 +36,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
     window.addEventListener('resize', handleResize);
     
+    soundService.startBackgroundMusic();
+
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -54,6 +56,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       window.removeEventListener('resize', handleResize);
       clearInterval(timer);
       clearTimeout(controlsTimer);
+      soundService.stopBackgroundMusic();
       if (inputRef.current) {
         inputRef.current.destroy();
         inputRef.current = null;
