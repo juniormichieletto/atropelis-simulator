@@ -24,6 +24,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const inputRef = useRef<InputManager | null>(null);
   const tileMapRef = useRef<TileMap>(new TileMap());
   const entityManagerRef = useRef<EntityManager>(new EntityManager());
+  const scoreRef = useRef(score);
+  const onGameOverRef = useRef(onGameOver);
+
+  // Keep refs in sync
+  useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { onGameOverRef.current = onGameOver; }, [onGameOver]);
 
   useEffect(() => {
     // Lazy init InputManager once
@@ -42,7 +48,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          onGameOver(score);
+          onGameOverRef.current(scoreRef.current);
           return 0;
         }
         return prev - 1;
@@ -62,7 +68,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         inputRef.current = null;
       }
     };
-  }, [score, onGameOver]);
+  }, []); // Only run once on mount
 
   const update = (dt: number) => {
     const player = playerRef.current;
@@ -96,8 +102,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         setScore(prev => prev + entity.points);
         entity.isAlive = false;
         soundService.playHitSound(entity.type);
-        // Small speed penalty on hit
-        player.speed *= 0.8;
+        // Small speed penalty on hit for other cars
+        if (entity.type === 'CAR') {
+         player.speed *= 0.8;
+        }
       }
     });
   };
