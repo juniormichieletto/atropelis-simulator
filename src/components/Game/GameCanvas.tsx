@@ -26,6 +26,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const entityManagerRef = useRef<EntityManager>(new EntityManager());
   const scoreRef = useRef(score);
   const onGameOverRef = useRef(onGameOver);
+  const speedTextRef = useRef<HTMLDivElement>(null);
 
   // Keep refs in sync
   useEffect(() => { scoreRef.current = score; }, [score]);
@@ -161,6 +162,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         ctx.arc(mapX + e.x * scaleX, mapY + e.y * scaleY, 2, 0, Math.PI * 2);
         ctx.fill();
     });
+
+    // Update HUD Speed via Ref to avoid render cycle issues
+    if (speedTextRef.current) {
+        speedTextRef.current.textContent = `SPEED: ${Math.abs(Math.round(player.speed))} KM/H`;
+    }
   };
 
   useGameLoop(update, draw);
@@ -197,7 +203,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       <div className="game-hud bottom">
         <div className="hud-group">
             <div className="hud-item score">SCORE: {score}</div>
-            <div className="hud-item speed">SPEED: {Math.abs(Math.round(playerRef.current.speed))} KM/H</div>
+            <div ref={speedTextRef} className="hud-item speed">SPEED: 0 KM/H</div>
         </div>
         <div className="hud-item timer">TIME: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</div>
         <button className="quit-btn" onClick={() => onGameOver(score)}>QUIT</button>

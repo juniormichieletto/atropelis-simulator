@@ -84,7 +84,7 @@ export class TileMap {
                 ctx.fillRect(x + this.tileSize / 2 - 2, y, 4, this.tileSize);
             }
             break;
-          case 'BUILDING':
+          case 'BUILDING': {
             ctx.fillStyle = '#95a5a6'; 
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
             
@@ -135,6 +135,7 @@ export class TileMap {
                 ctx.fillRect(x + 20, y + 20, 10, this.tileSize - 46);
             }
             break;
+          }
           case 'GRASS':
             ctx.fillStyle = '#27ae60';
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
@@ -162,7 +163,7 @@ export class TileMap {
             }
             break;
           case 'SIDEWALK':
-          default:
+          default: {
             ctx.fillStyle = '#bdc3c7';
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
             // Smaller paving stones (footwear/calçamento)
@@ -178,6 +179,7 @@ export class TileMap {
                 }
             }
             break;
+          }
         }
       }
     }

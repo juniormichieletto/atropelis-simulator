@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import './MobileControls.css';
 
 interface MobileControlsProps {
@@ -11,9 +11,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({ onInput }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const touchIdRef = useRef<number | null>(null);
 
-  const updateInput = (x: number, y: number) => {
-    // Distance from center (max radius ~50px)
-    const radius = 50;
+  const updateInput = useCallback((x: number, y: number) => {
     const threshold = 15;
 
     onInput({
@@ -22,19 +20,10 @@ export const MobileControls: React.FC<MobileControlsProps> = ({ onInput }) => {
       left: x < -threshold,
       right: x > threshold,
     });
-  };
+  }, [onInput]);
 
-  const handleStart = (e: React.TouchEvent | React.MouseEvent, clientX: number, clientY: number) => {
-    if (isActive) return;
-    setIsActive(true);
-    if ('changedTouches' in e) {
-      touchIdRef.current = e.changedTouches[0].identifier;
-    }
-    handleMove(e, clientX, clientY);
-  };
-
-  const handleMove = (e: React.TouchEvent | React.MouseEvent, clientX: number, clientY: number) => {
-    if (!isActive || !containerRef.current) return;
+  const handleMove = useCallback((clientX: number, clientY: number) => {
+    if (!containerRef.current) return;
 
     const rect = containerRef.current.getBoundingClientRect();
     const centerX = rect.left + rect.width / 2;
@@ -53,13 +42,22 @@ export const MobileControls: React.FC<MobileControlsProps> = ({ onInput }) => {
 
     setJoystickPos({ x: dx, y: dy });
     updateInput(dx, dy);
-  };
+  }, [updateInput]);
 
-  const handleEnd = () => {
+  const handleEnd = useCallback(() => {
     setIsActive(false);
     touchIdRef.current = null;
     setJoystickPos({ x: 0, y: 0 });
     onInput({ forward: false, backward: false, left: false, right: false });
+  }, [onInput]);
+
+  const handleStart = (e: React.TouchEvent | React.MouseEvent, clientX: number, clientY: number) => {
+    if (isActive) return;
+    setIsActive(true);
+    if ('changedTouches' in e) {
+      touchIdRef.current = e.changedTouches[0].identifier;
+    }
+    handleMove(clientX, clientY);
   };
 
   // Global touch move/end to handle dragging outside the container
@@ -69,7 +67,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({ onInput }) => {
     const onGlobalTouchMove = (e: TouchEvent) => {
       const touch = Array.from(e.changedTouches).find(t => t.identifier === touchIdRef.current);
       if (touch) {
-        handleMove(e as any, touch.clientX, touch.clientY);
+        handleMove(touch.clientX, touch.clientY);
       }
     };
 
@@ -80,7 +78,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({ onInput }) => {
       }
     };
 
-    const onGlobalMouseMove = (e: MouseEvent) => handleMove(e as any, e.clientX, e.clientY);
+    const onGlobalMouseMove = (e: MouseEvent) => handleMove(e.clientX, e.clientY);
     const onGlobalMouseUp = handleEnd;
 
     window.addEventListener('touchmove', onGlobalTouchMove, { passive: false });
@@ -94,7 +92,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({ onInput }) => {
       window.removeEventListener('mousemove', onGlobalMouseMove);
       window.removeEventListener('mouseup', onGlobalMouseUp);
     };
-  }, [isActive]);
+  }, [isActive, handleMove, handleEnd]);
 
   return (
     <div className="mobile-controls-container">

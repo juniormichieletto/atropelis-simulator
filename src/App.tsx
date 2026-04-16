@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import './App.css';
 import { NameEntryView } from './components/NameEntryView/NameEntryView';
 import { MenuView } from './components/MenuView/MenuView';
@@ -9,18 +9,10 @@ import { LocalStorageService } from './services/LocalStorageService';
 type View = 'NAME_ENTRY' | 'MENU' | 'GAME' | 'SCOREBOARD';
 
 function App() {
-  const [currentView, setCurrentView] = useState<View>('NAME_ENTRY');
-  const [userName, setUserName] = useState<string>('');
-
-  useEffect(() => {
-    const savedName = LocalStorageService.getName();
-    if (savedName) {
-      setUserName(savedName);
-      setCurrentView('MENU');
-    } else {
-      setCurrentView('NAME_ENTRY');
-    }
-  }, []);
+  const [currentView, setCurrentView] = useState<View>(() => {
+    return LocalStorageService.getName() ? 'MENU' : 'NAME_ENTRY';
+  });
+  const [userName, setUserName] = useState<string>(() => LocalStorageService.getName() || '');
 
   const handleNameSubmitted = (name: string) => {
     setUserName(name);

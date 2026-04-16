@@ -1,11 +1,12 @@
 class SoundService {
   private audioCtx: AudioContext | null = null;
-  private musicInterval: any = null;
+  private musicInterval: number | null = null;
   private isMusicPlaying = false;
 
   private init() {
     if (!this.audioCtx) {
-      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      this.audioCtx = new AudioContextClass();
     }
     if (this.audioCtx.state === 'suspended') {
       this.audioCtx.resume();
