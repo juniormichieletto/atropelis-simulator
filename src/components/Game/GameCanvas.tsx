@@ -5,7 +5,6 @@ import { PlayerCar } from './PlayerCar';
 import { InputManager } from './InputManager';
 import { TileMap } from './TileMap';
 import { EntityManager } from './Entities';
-import { MobileControls } from './MobileControls';
 import { soundService } from '../../services/SoundService';
 
 interface GameCanvasProps {
