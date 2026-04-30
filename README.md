@@ -2,6 +2,8 @@
 
 Atropelis Simulator is a top-down driving game inspired by the classic GTA 1. Players navigate a city in a white car, scoring points by hitting pedestrians, bikes, and motorcycles while avoiding collisions with other vehicles.
 
+## 🎮 [Play Live Demo Here!](https://juniormichieletto.github.io/atropelis-simulator/)
+
 ## 🚀 Vision
 A high-performance, responsive browser-based simulator built with React and the Canvas API. Experience smooth top-down driving mechanics, a dynamic city environment, and competitive scoring.
 
@@ -59,13 +61,13 @@ npm run preview
 ```
 
 ## 🎮 Controls
-- **Desktop:**
+- **Desktop & Mobile:**
+  - **Click & Hold** or **Press & Drag** anywhere on the screen to drive the car toward the pointer.
+- **Alternative (Keyboard):**
   - `W` / `Arrow Up`: Accelerate
   - `S` / `Arrow Down`: Brake / Reverse
   - `A` / `Arrow Left`: Steer Left
   - `D` / `Arrow Right`: Steer Right
-- **Mobile:**
-  - Use the on-screen virtual controls for steering and acceleration.
 
 ## 📝 License
 This project is for educational and entertainment purposes.
