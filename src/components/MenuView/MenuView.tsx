@@ -32,6 +32,10 @@ export const MenuView: React.FC<MenuViewProps> = ({
           <button className="menu-btn change-name-btn" onClick={onChangeName}>CHANGE NAME</button>
         </div>
       </div>
+      <div className="menu-footer">
+        <p>Created by <a href="https://github.com/juniormichieletto" target="_blank" rel="noopener noreferrer">AJ (juniormichieletto)</a></p>
+        <p><a href="https://juniormichieletto.github.io/atropelis-simulator/" target="_blank" rel="noopener noreferrer">GitHub Repository</a></p>
+      </div>
     </div>
   );
 };
