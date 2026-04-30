@@ -28,9 +28,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const onGameOverRef = useRef(onGameOver);
   const speedTextRef = useRef<HTMLDivElement>(null);
 
+  const zoom = 1.5;
+
+  const isPointerDownRef = useRef(false);
+
   // Keep refs in sync
   useEffect(() => { scoreRef.current = score; }, [score]);
   useEffect(() => { onGameOverRef.current = onGameOver; }, [onGameOver]);
+
+  const handleInteraction = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const player = playerRef.current;
+
+    // Convert screen coordinates to game coordinates
+    // Game coord = (Screen / Zoom) - (CanvasCenter / Zoom) + PlayerPos
+    const gameX = (clientX / zoom) - (canvas.width / 2 / zoom) + player.x;
+    const gameY = (clientY / zoom) - (canvas.height / 2 / zoom) + player.y;
+
+    player.setTarget(gameX, gameY);
+  };
 
   useEffect(() => {
     // Lazy init InputManager once
@@ -43,6 +60,50 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
     window.addEventListener('resize', handleResize);
     
+    const handleMouseDown = (e: MouseEvent) => {
+      // Don't trigger if clicking on HUD elements
+      if ((e.target as HTMLElement).closest('.game-hud') || (e.target as HTMLElement).closest('.quit-btn')) return;
+      isPointerDownRef.current = true;
+      handleInteraction(e.clientX, e.clientY);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isPointerDownRef.current) {
+        handleInteraction(e.clientX, e.clientY);
+      }
+    };
+
+    const handleMouseUp = () => {
+      isPointerDownRef.current = false;
+      playerRef.current.clearTarget();
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if ((e.target as HTMLElement).closest('.game-hud') || (e.target as HTMLElement).closest('.quit-btn')) return;
+      isPointerDownRef.current = true;
+      if (e.touches[0]) {
+        handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isPointerDownRef.current && e.touches[0]) {
+        handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      isPointerDownRef.current = false;
+      playerRef.current.clearTarget();
+    };
+
+    window.addEventListener('mousedown', handleMouseDown);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('touchstart', handleTouchStart);
+    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchend', handleTouchEnd);
+
     soundService.startBackgroundMusic();
 
     const timer = setInterval(() => {
@@ -61,6 +122,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousedown', handleMouseDown);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
       clearInterval(timer);
       clearTimeout(controlsTimer);
       soundService.stopBackgroundMusic();
@@ -184,8 +251,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         <div className="controls-overlay" onClick={() => setShowControls(false)}>
           <div className="controls-card">
             <h3>GAME INSTRUCTIONS</h3>
-            <p className="controls-title">DESKTOP CONTROLS</p>
-            <p><strong>ARROW KEYS</strong> or <strong>WASD</strong> TO DRIVE</p>
+            <p className="controls-title">CONTROLS</p>
+            <p><strong>CLICK & HOLD</strong> or <strong>DRAG</strong> TO DRIVE</p>
             
             <div className="scoring-guide">
               <p className="scoring-title">SCORING GUIDE</p>
@@ -209,7 +276,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         <button className="quit-btn" onClick={() => onGameOver(score)}>QUIT</button>
       </div>
 
-      <MobileControls onInput={(input) => inputRef.current?.setManualInput(input)} />
+      {/* <MobileControls onInput={(input) => inputRef.current?.setManualInput(input)} /> */}
     </div>
   );
 };

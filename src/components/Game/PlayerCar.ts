@@ -12,29 +12,76 @@ export class PlayerCar {
   width: number = 40;
   height: number = 20;
 
+  targetX: number | null = null;
+  targetY: number | null = null;
+
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
     this.angle = 0;
     this.speed = 0;
-    this.maxSpeed = 300; // pixels per second
-    this.acceleration = 150; // pixels per second per second
+    this.maxSpeed = 350; // pixels per second
+    this.acceleration = 200; // pixels per second per second
     this.friction = 0.95; // speed multiplier per second
-    this.steeringRate = Math.PI; // one full rotation in 2 seconds
+    this.steeringRate = Math.PI * 1.5; // faster steering for better response
+  }
+
+  setTarget(x: number, y: number) {
+    this.targetX = x;
+    this.targetY = y;
+  }
+
+  clearTarget() {
+    this.targetX = null;
+    this.targetY = null;
   }
 
   update(dt: number, input: { forward: boolean, backward: boolean, left: boolean, right: boolean }) {
+    let movementInput = { ...input };
+
+    // If we have a target, override keyboard/manual input
+    if (this.targetX !== null && this.targetY !== null) {
+      const dx = this.targetX - this.x;
+      const dy = this.targetY - this.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 10) {
+        const targetAngle = Math.atan2(dy, dx);
+        
+        // Normalize angles to -PI to PI
+        let angleDiff = targetAngle - this.angle;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+
+        // Steering logic for target
+        if (Math.abs(angleDiff) > 0.05) {
+          if (angleDiff > 0) movementInput.right = true;
+          else movementInput.left = true;
+        }
+
+        // Only move forward if we aren't facing the wrong way too much
+        if (Math.abs(angleDiff) < Math.PI / 2) {
+          movementInput.forward = true;
+        } else {
+          // Slow down and turn if pointing away
+          movementInput.forward = false;
+        }
+      } else {
+        this.clearTarget();
+      }
+    }
+
     // Steering - only when moving
     if (Math.abs(this.speed) > 5) {
       const turnMultiplier = this.speed > 0 ? 1 : -1;
-      if (input.left) this.angle -= this.steeringRate * dt * turnMultiplier;
-      if (input.right) this.angle += this.steeringRate * dt * turnMultiplier;
+      if (movementInput.left) this.angle -= this.steeringRate * dt * turnMultiplier;
+      if (movementInput.right) this.angle += this.steeringRate * dt * turnMultiplier;
     }
 
     // Acceleration
-    if (input.forward) {
+    if (movementInput.forward) {
       this.speed += this.acceleration * dt;
-    } else if (input.backward) {
+    } else if (movementInput.backward) {
       this.speed -= this.acceleration * dt;
     } else {
       // Passive Friction
