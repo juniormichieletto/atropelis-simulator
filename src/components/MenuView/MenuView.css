@@ -51,28 +51,8 @@ h1 {
 
 .welcome-text {
   font-size: 0.8rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2.5rem;
   line-height: 1.6;
-}
-
-.project-explanation {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  border-top: 2px solid #d9534f;
-  border-bottom: 2px solid #d9534f;
-  background-color: rgba(217, 83, 79, 0.1);
-  font-style: italic;
-}
-
-.project-explanation p {
-  font-size: 0.75rem;
-  line-height: 1.4;
-  margin: 0.8rem 0;
-  color: #ecf0f1;
-}
-
-.lang-pt {
-  opacity: 0.9;
 }
 
 .nickname {
@@ -122,15 +102,7 @@ h1 {
         margin-bottom: 1rem;
     }
     .welcome-text {
-        margin-bottom: 1rem;
-    }
-    .project-explanation {
-        margin-bottom: 1.2rem;
-        padding: 0.6rem;
-    }
-    .project-explanation p {
-        font-size: 0.65rem;
-        margin: 0.5rem 0;
+        margin-bottom: 1.5rem;
     }
     .menu-buttons {
         gap: 0.8rem;

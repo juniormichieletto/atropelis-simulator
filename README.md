@@ -4,6 +4,11 @@ Atropelis Simulator is a top-down driving game inspired by the classic GTA 1. Pl
 
 ## 🎮 [Play Live Demo Here!](https://juniormichieletto.github.io/atropelis-simulator/)
 
+## ⚠️ Project Origin (The Inside Joke)
+**English:** "🎮 PRO TIP: This game was made because a certain friend of ours thinks he's playing GTA in real life. We built this simulator so he can practice his 'creative driving' without involving actual insurance companies. Drive safe (unlike him)!"
+
+**Português:** "🎮 DICA PRO: Esse jogo foi feito porque um certo amigo acha que a vida é GTA. Criamos esse simulador pra ele treinar a 'direção criativa' dele sem precisar acionar o seguro na vida real. Dirija com cuidado (ao contrário dele)!"
+
 ## 🚀 Vision
 A high-performance, responsive browser-based simulator built with React and the Canvas API. Experience smooth top-down driving mechanics, a dynamic city environment, and competitive scoring.
 

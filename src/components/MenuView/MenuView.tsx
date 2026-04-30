@@ -21,11 +21,6 @@ export const MenuView: React.FC<MenuViewProps> = ({
         <h1>ATROPELIS SIMULATOR</h1>
         <p className="welcome-text">WELCOME, <span className="nickname">{userName}</span>!</p>
         
-        <div className="project-explanation">
-          <p className="lang-en">"🎮 PRO TIP: This game was made because a certain friend of ours thinks he's playing GTA in real life. We built this simulator so he can practice his 'creative driving' without involving actual insurance companies. Drive safe (unlike him)!"</p>
-          <p className="lang-pt">"🎮 DICA PRO: Esse jogo foi feito porque um certo amigo acha que a vida é GTA. Criamos esse simulador pra ele treinar a 'direção criativa' dele sem precisar acionar o seguro na vida real. Dirija com cuidado (ao contrário dele)!"</p>
-        </div>
-
         <div className="menu-buttons">
           <button className="menu-btn start-btn" onClick={onStartGame}>START NEW GAME</button>
           <button className="menu-btn scoreboard-btn" onClick={onShowScoreboard}>SCOREBOARD</button>
