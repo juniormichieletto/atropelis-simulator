@@ -1,6 +1,6 @@
 import React from 'react';
 import './MenuView.css';
-import backgroundImage from '../../../initial_screen.png';
+import { soundService } from '../../services/SoundService';
 
 interface MenuViewProps {
   userName: string;
@@ -16,15 +16,40 @@ export const MenuView: React.FC<MenuViewProps> = ({
   onChangeName,
 }) => {
   return (
-    <div className="menu-container" style={{ backgroundImage: `url(${backgroundImage})` }}>
+    <div className="menu-container synthwave-screen">
       <div className="menu-card">
+        <div className="edition-badge">3000 HORIZON EDITION</div>
         <h1>ATROPELIS SIMULATOR</h1>
-        <p className="welcome-text">WELCOME, <span className="nickname">{userName}</span>!</p>
+        <p className="welcome-text">PILOT READY: <span className="nickname">{userName}</span></p>
         
         <div className="menu-buttons">
-          <button className="menu-btn start-btn" onClick={onStartGame}>START NEW GAME</button>
-          <button className="menu-btn scoreboard-btn" onClick={onShowScoreboard}>SCOREBOARD</button>
-          <button className="menu-btn change-name-btn" onClick={onChangeName}>CHANGE NAME</button>
+          <button
+            className="menu-btn start-btn"
+            onClick={() => {
+              soundService.playUiSound();
+              onStartGame();
+            }}
+          >
+            START NEW GAME
+          </button>
+          <button
+            className="menu-btn scoreboard-btn"
+            onClick={() => {
+              soundService.playUiSound();
+              onShowScoreboard();
+            }}
+          >
+            SCOREBOARD
+          </button>
+          <button
+            className="menu-btn change-name-btn"
+            onClick={() => {
+              soundService.playUiSound();
+              onChangeName();
+            }}
+          >
+            CHANGE PILOT
+          </button>
         </div>
       </div>
       <div className="menu-footer">

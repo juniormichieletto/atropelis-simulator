@@ -1,63 +1,59 @@
-.name-entry-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #1a1a1a;
-}
-
 .name-entry-card {
-  background-color: #000;
+  position: relative;
+  z-index: 2;
+  background-color: rgba(12, 8, 36, 0.92);
   padding: 3rem;
-  border: 8px solid #fff;
-  box-shadow: 10px 10px 0px #f1c40f;
+  border: 4px solid #00e5ff;
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.35), 8px 8px 0px #ff2a85;
   text-align: center;
   width: 90%;
   max-width: 500px;
 }
 
-h1 {
-  font-size: 1.2rem;
-  margin-bottom: 2rem;
-  color: #fff;
-  text-shadow: 4px 4px 0px #d9534f;
+.name-entry-card h1 {
+  font-size: 1.3rem;
+  margin-bottom: 1.8rem;
+  color: #00e5ff;
+  text-shadow: 4px 4px 0px #ff2a85;
   line-height: 1.6;
 }
 
-p {
+.name-entry-card p {
   font-size: 0.7rem;
-  margin-bottom: 2.5rem;
-  color: #bdc3c7;
+  margin-bottom: 2rem;
+  color: #ffbe0b;
 }
 
-form {
+.name-entry-card form {
   display: flex;
   flex-direction: column;
 }
 
-input {
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  background-color: #333;
-  color: #fff;
-  border: 4px solid #fff;
+.name-entry-card input {
+  padding: 1.3rem;
+  margin-bottom: 1.8rem;
+  background-color: #161032;
+  color: #00e5ff;
+  border: 3px solid #ff2a85;
   font-size: 1rem;
   font-family: 'Press Start 2P', cursive;
   text-align: center;
 }
 
-input:focus {
-    outline: none;
-    border-color: #f1c40f;
+.name-entry-card input:focus {
+  outline: none;
+  border-color: #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.45);
 }
 
-button {
-  background-color: #d9534f;
-  padding: 1.5rem;
-  font-size: 1.1rem;
-  box-shadow: 6px 6px 0px #a94442;
+.name-entry-card button {
+  background-color: #ff2a85;
+  border-color: #ffee55;
+  padding: 1.3rem;
+  font-size: 1rem;
+  box-shadow: 6px 6px 0px #7a1042;
 }
 
-button:hover {
-  background-color: #c9302c;
+.name-entry-card button:hover {
+  background-color: #ff4796;
 }

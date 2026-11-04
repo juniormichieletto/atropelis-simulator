@@ -1,16 +1,10 @@
-.scoreboard-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-  background-color: #1a1a1a;
-}
-
 .scoreboard-card {
-  background-color: #000;
+  position: relative;
+  z-index: 2;
+  background-color: rgba(12, 8, 36, 0.94);
   padding: 2rem;
-  border: 8px solid #fff;
-  box-shadow: 10px 10px 0px #2980b9;
+  border: 4px solid #00e5ff;
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.35), 8px 8px 0px #ff2a85;
   text-align: center;
   width: 95%;
   max-width: 800px;
@@ -19,18 +13,19 @@
   flex-direction: column;
 }
 
-h1 {
+.scoreboard-card h1 {
   font-size: 1.5rem;
-  margin-bottom: 2rem;
-  color: #fff;
-  text-shadow: 4px 4px 0px #2980b9;
+  margin-bottom: 1.8rem;
+  color: #00e5ff;
+  text-shadow: 4px 4px 0px #ff2a85;
 }
 
 .table-wrapper {
   flex-grow: 1;
   overflow-y: auto;
-  margin-bottom: 2rem;
-  border: 4px solid #333;
+  margin-bottom: 1.8rem;
+  border: 3px solid #3d3963;
+  background-color: rgba(9, 5, 29, 0.7);
 }
 
 .score-table {
@@ -39,28 +34,28 @@ h1 {
 }
 
 .score-table th {
-  background-color: #333;
-  color: #f1c40f;
-  padding: 1.5rem;
+  background-color: #1e1044;
+  color: #ffbe0b;
+  padding: 1.2rem;
   font-size: 0.7rem;
   position: sticky;
   top: 0;
-  border-bottom: 4px solid #fff;
+  border-bottom: 3px solid #ff2a85;
 }
 
 .score-table td {
-  padding: 1.5rem;
-  border-bottom: 2px solid #333;
+  padding: 1.2rem;
+  border-bottom: 2px solid #26204a;
   font-size: 0.6rem;
   color: #fff;
 }
 
 .score-table tr:hover {
-  background-color: #222;
+  background-color: rgba(0, 229, 255, 0.1);
 }
 
 .points-cell {
-  color: #2ecc71;
+  color: #00e5ff;
   font-weight: bold;
 }
 
@@ -73,11 +68,14 @@ h1 {
 .back-btn {
   margin-top: auto;
   align-self: center;
+  background-color: #ff2a85;
+  border-color: #ffee55;
 }
 
 @media (max-width: 600px) {
-    .score-table th, .score-table td {
-        padding: 0.8rem;
-        font-size: 0.5rem;
-    }
+  .score-table th,
+  .score-table td {
+    padding: 0.8rem;
+    font-size: 0.5rem;
+  }
 }

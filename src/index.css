@@ -8,7 +8,7 @@
 
 body {
   font-family: 'Press Start 2P', cursive;
-  background-color: #1a1a1a;
+  background-color: #09051d;
   color: #fff;
   overflow: hidden;
   image-rendering: pixelated;
@@ -27,33 +27,103 @@ body {
   height: 100%;
   background: linear-gradient(
     rgba(18, 16, 16, 0) 50%,
-    rgba(0, 0, 0, 0.1) 50%
+    rgba(0, 0, 0, 0.14) 50%
   ),
   linear-gradient(
     90deg,
-    rgba(255, 0, 0, 0.03),
-    rgba(0, 255, 0, 0.01),
-    rgba(0, 0, 100, 0.03)
+    rgba(255, 0, 128, 0.03),
+    rgba(0, 229, 255, 0.02),
+    rgba(120, 0, 255, 0.03)
   );
   background-size: 100% 4px, 3px 100%;
   pointer-events: none;
   z-index: 1000;
 }
 
+/* Shared Top Gear 3000 Synthwave Horizon + Perspective Grid Background */
+.synthwave-screen {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
+  background: linear-gradient(
+    180deg,
+    #09051d 0%,
+    #1e1044 32%,
+    #7a2267 52%,
+    #f06848 56%,
+    #140b2e 56.5%,
+    #09051d 100%
+  );
+}
+
+/* Animated perspective neon floor grid */
+.synthwave-screen::before {
+  content: '';
+  position: fixed;
+  left: -50%;
+  right: -50%;
+  bottom: -25%;
+  height: 65%;
+  background-image:
+    linear-gradient(to right, rgba(0, 229, 255, 0.32) 2px, transparent 2px),
+    linear-gradient(to bottom, rgba(255, 42, 133, 0.38) 2px, transparent 2px);
+  background-size: 64px 42px;
+  transform: perspective(260px) rotateX(68deg);
+  transform-origin: top center;
+  animation: gridScroll 1.4s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Retro Synthwave Sun on Horizon */
+.synthwave-screen::after {
+  content: '';
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  width: 220px;
+  height: 220px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffee55 0%, #ff5e57 55%, #ff2a85 100%);
+  box-shadow: 0 0 50px rgba(255, 42, 133, 0.65);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes gridScroll {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 42px;
+  }
+}
+
 /* Retro Button Style */
 button {
   font-family: 'Press Start 2P', cursive;
   cursor: pointer;
-  border: 4px solid #fff;
-  background: #333;
+  border: 3px solid #00e5ff;
+  background: #1e1044;
   color: #fff;
-  padding: 10px 20px;
+  padding: 12px 20px;
   text-transform: uppercase;
-  box-shadow: 4px 4px 0px #000;
-  transition: transform 0.1s;
+  box-shadow: 4px 4px 0px #050210;
+  transition: transform 0.1s, background-color 0.15s, box-shadow 0.15s;
+}
+
+button:hover {
+  background: #ff2a85;
+  border-color: #fff;
 }
 
 button:active {
   transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0px #000;
+  box-shadow: 2px 2px 0px #050210;
 }

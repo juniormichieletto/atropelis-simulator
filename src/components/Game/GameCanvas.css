@@ -3,7 +3,7 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: #000;
+  background-color: #09051d;
 }
 
 .game-canvas {
@@ -25,44 +25,92 @@
 
 .game-hud.bottom {
   top: auto;
-  bottom: 120px;
+  bottom: 24px;
 }
 
 .hud-group {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hud-group.right {
+  align-items: flex-end;
 }
 
 .hud-item {
-  background-color: rgba(0, 0, 0, 0.8);
+  background-color: rgba(12, 8, 36, 0.88);
   color: #fff;
-  padding: 15px;
+  padding: 12px 15px;
   font-family: 'Press Start 2P', cursive;
-  font-size: 14px;
-  border: 4px solid #fff;
-  box-shadow: 4px 4px 0px #000;
+  font-size: 13px;
+  border: 3px solid #00e5ff;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.35), 4px 4px 0px #050210;
   text-transform: uppercase;
 }
 
-.score { color: #2ecc71; border-color: #27ae60; }
-.speed { color: #f1c40f; border-color: #f39c12; font-size: 10px; }
-.timer { color: #e74c3c; border-color: #c0392b; }
+.score {
+  color: #00e5ff;
+  border-color: #00e5ff;
+}
+
+.speed {
+  color: #ffbe0b;
+  border-color: #ffbe0b;
+  font-size: 10px;
+  min-width: 165px;
+}
+
+.tach-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.gear-badge {
+  background: #ff2a85;
+  color: #fff;
+  padding: 3px 5px;
+  font-size: 9px;
+}
+
+.rpm-bar-track {
+  width: 100%;
+  height: 7px;
+  background: #1b1738;
+  border: 1px solid #574b90;
+  overflow: hidden;
+}
+
+.rpm-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00e5ff 0%, #ffbe0b 65%, #ff2a85 100%);
+  transition: width 0.06s linear;
+}
+
+.timer {
+  color: #ff2a85;
+  border-color: #ff2a85;
+  box-shadow: 0 0 12px rgba(255, 42, 133, 0.35), 4px 4px 0px #050210;
+}
 
 .quit-btn {
-  background-color: #333;
+  background-color: #1e1044;
   color: #fff;
-  border: 4px solid #fff;
-  padding: 15px;
+  border: 3px solid #ff2a85;
+  padding: 12px 16px;
   font-family: 'Press Start 2P', cursive;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 4px 4px 0px #000;
+  box-shadow: 4px 4px 0px #050210;
 }
 
 .quit-btn:hover {
-  background-color: #d9534f;
+  background-color: #ff2a85;
 }
 
 .controls-overlay {
@@ -71,7 +119,7 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
+  background: radial-gradient(circle at center, rgba(30, 16, 68, 0.78) 0%, rgba(9, 5, 29, 0.92) 100%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -80,25 +128,27 @@
 }
 
 .controls-card {
-  background-color: #000;
-  padding: 3rem;
-  border: 8px solid #fff;
+  background-color: rgba(12, 8, 36, 0.95);
+  padding: 2.5rem;
+  border: 4px solid #00e5ff;
   text-align: center;
-  box-shadow: 10px 10px 0px #d9534f;
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.35), 8px 8px 0px #ff2a85;
 }
 
 .controls-card h3 {
   margin-bottom: 1.5rem;
-  color: #fff;
-  font-size: 1.2rem;
-  border-bottom: 2px solid #fff;
-  padding-bottom: 0.5rem;
+  color: #00e5ff;
+  text-shadow: 3px 3px 0px #ff2a85;
+  font-size: 1.1rem;
+  border-bottom: 2px solid #ff2a85;
+  padding-bottom: 0.6rem;
 }
 
-.controls-title, .scoring-title {
-  font-size: 0.8rem;
-  color: #f1c40f;
-  margin-top: 1.5rem !important;
+.controls-title,
+.scoring-title {
+  font-size: 0.75rem;
+  color: #ffbe0b;
+  margin-top: 1.2rem !important;
   margin-bottom: 0.5rem !important;
   text-decoration: underline;
 }
@@ -107,9 +157,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 42, 133, 0.08);
   padding: 1rem;
-  border: 2px dashed #fff;
+  border: 2px dashed #00e5ff;
   margin-top: 1rem;
 }
 
@@ -120,20 +170,25 @@
   text-align: left;
 }
 
-.pts { color: #2ecc71; font-weight: bold; }
-.pts.penalty { color: #e74c3c; }
+.pts {
+  color: #00e5ff;
+  font-weight: bold;
+}
+
+.pts.penalty {
+  color: #ff2a85;
+}
 
 .controls-card p {
   margin: 0.5rem 0;
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   line-height: 1.6;
 }
 
 .controls-card .hint {
-  margin-top: 2rem;
-  font-size: 0.5rem;
-  color: #7f8c8d;
-  font-style: italic;
+  margin-top: 1.8rem;
+  font-size: 0.55rem;
+  color: #ffbe0b;
 }
 
 @media (max-width: 600px) {
@@ -141,7 +196,10 @@
     font-size: 8px;
     padding: 8px;
   }
+  .speed {
+    min-width: 120px;
+  }
   .game-hud.bottom {
-      bottom: 140px;
+    bottom: 20px;
   }
 }

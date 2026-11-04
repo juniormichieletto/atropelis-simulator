@@ -1,3 +1,12 @@
+export interface CarControlInput {
+  forward: boolean;
+  backward: boolean;
+  left: boolean;
+  right: boolean;
+  steerAmount?: number; // -1 (full left) to +1 (full right) for touch/mouse steering
+  autoAccelerate?: boolean;
+}
+
 export class PlayerCar {
   x: number;
   y: number;
@@ -7,13 +16,19 @@ export class PlayerCar {
   acceleration: number;
   friction: number;
   steeringRate: number;
-  
+
   // Dimensions for collision
   width: number = 40;
   height: number = 20;
 
-  targetX: number | null = null;
-  targetY: number | null = null;
+  // Visual state for behind-the-car 3D view
+  steerVisual: number = 0; // Smoothed -1..+1 steering angle for sprite & camera lag
+  wheelPhase: number = 0;
+  isBraking: boolean = false;
+  bounceOffset: number = 0;
+
+  // Touch/Pointer steering state (-1 left, 0 straight, +1 right, null inactive)
+  pointerSteer: number | null = null;
 
   constructor(x: number, y: number) {
     this.x = x;
@@ -21,133 +36,250 @@ export class PlayerCar {
     this.angle = 0;
     this.speed = 0;
     this.maxSpeed = 350; // pixels per second
-    this.acceleration = 200; // pixels per second per second
-    this.friction = 0.95; // speed multiplier per second
-    this.steeringRate = Math.PI * 1.5; // faster steering for better response
+    this.acceleration = 220; // pixels per second squared
+    this.friction = 0.95;
+    this.steeringRate = Math.PI * 1.15;
   }
 
-  setTarget(x: number, y: number) {
-    this.targetX = x;
-    this.targetY = y;
+  /**
+   * Sets steering from screen X coordinate (Left side = steer left, Right side = steer right, Center = straight)
+   */
+  setPointerScreenX(clientX: number, screenWidth: number) {
+    const norm = (clientX - screenWidth * 0.5) / (screenWidth * 0.5); // -1 to +1
+    if (Math.abs(norm) < 0.14) {
+      this.pointerSteer = 0; // Center deadzone drives straight while auto-accelerating
+    } else {
+      const sign = norm > 0 ? 1 : -1;
+      const mag = Math.min(1, (Math.abs(norm) - 0.14) / 0.55);
+      this.pointerSteer = sign * Math.max(0.35, mag);
+    }
   }
 
   clearTarget() {
-    this.targetX = null;
-    this.targetY = null;
+    this.pointerSteer = null;
   }
 
-  update(dt: number, input: { forward: boolean, backward: boolean, left: boolean, right: boolean }) {
-    let movementInput = { ...input };
-
-    // If we have a target, override keyboard/manual input
-    if (this.targetX !== null && this.targetY !== null) {
-      const dx = this.targetX - this.x;
-      const dy = this.targetY - this.y;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist > 10) {
-        const targetAngle = Math.atan2(dy, dx);
-        
-        // Normalize angles to -PI to PI
-        let angleDiff = targetAngle - this.angle;
-        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-
-        // Steering logic for target
-        if (Math.abs(angleDiff) > 0.05) {
-          if (angleDiff > 0) movementInput.right = true;
-          else movementInput.left = true;
-        }
-
-        // Only move forward if we aren't facing the wrong way too much
-        if (Math.abs(angleDiff) < Math.PI / 2) {
-          movementInput.forward = true;
-        } else {
-          // Slow down and turn if pointing away
-          movementInput.forward = false;
-        }
-      } else {
-        this.clearTarget();
-      }
+  update(dt: number, input: CarControlInput) {
+    // Combine keyboard steering and touch/mouse left/right steering
+    let steerInput = 0;
+    if (input.left) steerInput -= 1;
+    if (input.right) steerInput += 1;
+    if (steerInput === 0 && this.pointerSteer !== null) {
+      steerInput = this.pointerSteer;
     }
 
-    // Steering - only when moving
-    if (Math.abs(this.speed) > 5) {
-      const turnMultiplier = this.speed > 0 ? 1 : -1;
-      if (movementInput.left) this.angle -= this.steeringRate * dt * turnMultiplier;
-      if (movementInput.right) this.angle += this.steeringRate * dt * turnMultiplier;
+    // Smooth visual steering for car sprite & camera tilt
+    const targetVisual = steerInput;
+    this.steerVisual += (targetVisual - this.steerVisual) * Math.min(1, dt * 12);
+
+    // Determine throttle: auto-accelerate is on unless braking
+    const wantsBackward = input.backward;
+    const autoGas = input.autoAccelerate ?? true;
+    const wantsForward = !wantsBackward && (input.forward || autoGas || this.pointerSteer !== null);
+
+    this.isBraking = wantsBackward;
+
+    // Steering - responsive at all speeds so player can always turn away from obstacles
+    if (Math.abs(steerInput) > 0.01) {
+      const dirMultiplier = this.speed >= -5 ? 1 : -1;
+      const speedFactor = Math.max(0.45, Math.min(1, Math.abs(this.speed) / 90));
+      this.angle += steerInput * this.steeringRate * speedFactor * dt * dirMultiplier;
     }
 
-    // Acceleration
-    if (movementInput.forward) {
+    // Acceleration & Braking
+    if (wantsForward) {
+      // Boost top speed slightly when holding W / ArrowUp explicitly
+      const targetMax = input.forward ? this.maxSpeed * 1.1 : this.maxSpeed;
       this.speed += this.acceleration * dt;
-    } else if (movementInput.backward) {
-      this.speed -= this.acceleration * dt;
+      if (this.speed > targetMax) {
+        this.speed = targetMax;
+      }
+    } else if (wantsBackward) {
+      // Stronger braking when moving forward, then reverse
+      const decel = this.speed > 0 ? this.acceleration * 2.2 : this.acceleration * 1.2;
+      this.speed -= decel * dt;
+      if (this.speed < -this.maxSpeed * 0.5) {
+        this.speed = -this.maxSpeed * 0.5;
+      }
     } else {
       // Passive Friction
       this.speed *= Math.pow(this.friction, dt * 10);
       if (Math.abs(this.speed) < 1) this.speed = 0;
     }
 
-    // Cap speed
-    if (this.speed > this.maxSpeed) this.speed = this.maxSpeed;
-    if (this.speed < -this.maxSpeed / 2) this.speed = -this.maxSpeed / 2;
+    // Advance tire rolling animation & road vibration
+    this.wheelPhase += this.speed * dt * 0.12;
+    this.bounceOffset = Math.abs(this.speed) > 25 ? Math.sin(this.wheelPhase * 1.8) * 1.2 : 0;
 
     // Apply movement
     this.x += Math.cos(this.angle) * this.speed * dt;
     this.y += Math.sin(this.angle) * this.speed * dt;
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  /**
+   * Renders the player's car in Top Gear 3000 behind-the-car perspective at the bottom center of the screen.
+   */
+  drawRearView(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number) {
     ctx.save();
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.angle);
-    
-    // PIXEL ART WHITE CAR
-    const w = this.width;
-    const h = this.height;
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.fillRect(-w/2 + 2, -h/2 + 2, w, h);
+    const steer = this.steerVisual; // -1..+1
+    const carCenterX = canvasWidth * 0.5 + steer * 26;
+    const carBottomY = canvasHeight - 78 + this.bounceOffset;
 
-    // Main Body (White)
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(-w/2, -h/2, w, h);
+    ctx.translate(carCenterX, carBottomY);
+    // Subtle chassis body roll into the turn
+    ctx.rotate(steer * 0.055);
 
-    // Darker outline/shading for depth
-    ctx.fillStyle = '#CCCCCC';
-    ctx.fillRect(-w/2, h/2 - 2, w, 2); // bottom side shadow
-    ctx.fillRect(-w/2, -h/2, 2, h); // rear side shadow
+    // Scale car proportionally for mobile/desktop screens
+    const scale = Math.max(0.85, Math.min(1.25, canvasWidth / 900));
+    ctx.scale(scale, scale);
 
-    // Roof section (slightly raised/different shade)
-    ctx.fillStyle = '#EEEEEE';
-    ctx.fillRect(-w/4, -h/2 + 2, w/2, h - 4);
+    const yaw = steer * 14; // Perspective shift showing left/right flank when turning
+    const treadTick = Math.floor(this.wheelPhase) % 2 === 0;
 
-    // Windows (Dark Blue-ish Black)
-    ctx.fillStyle = '#1a1a1a';
-    // Front windshield
-    ctx.fillRect(w/6, -h/2 + 3, w/10, h - 6);
-    // Rear window
-    ctx.fillRect(-w/3, -h/2 + 4, w/15, h - 8);
-    // Side windows
-    ctx.fillRect(-w/6, -h/2 + 1, w/3, 1);
-    ctx.fillRect(-w/6, h/2 - 2, w/3, 1);
+    // 1. Ground Shadow underneath car
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+    ctx.beginPath();
+    ctx.ellipse(0, 4, 88, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
 
-    // Headlights (Yellow)
-    ctx.fillStyle = '#FFFFCC';
-    ctx.fillRect(w/2 - 3, -h/2 + 1, 3, 4);
-    ctx.fillRect(w/2 - 3, h/2 - 5, 3, 4);
+    // 2. Front wheels peeking out when steering hard left/right
+    if (Math.abs(steer) > 0.15) {
+      ctx.fillStyle = '#141418';
+      const frontWheelX = steer > 0 ? 74 : -92;
+      ctx.fillRect(frontWheelX, -32, 18, 22);
+    }
 
-    // Taillights (Red)
-    ctx.fillStyle = '#FF3333';
-    ctx.fillRect(-w/2, -h/2 + 1, 2, 4);
-    ctx.fillRect(-w/2, h/2 - 5, 2, 4);
+    // 3. Wide Rear Tires (Top Gear 3000 thick racing slicks with animated treads)
+    const drawTire = (tx: number) => {
+      ctx.fillStyle = '#141418';
+      ctx.fillRect(tx, -28, 30, 30);
+      ctx.fillStyle = '#26262e';
+      ctx.fillRect(tx + 3, -26, 24, 26);
+      // Rolling tread grooves
+      ctx.fillStyle = treadTick ? '#111115' : '#32323d';
+      ctx.fillRect(tx + 4, -22, 22, 4);
+      ctx.fillRect(tx + 4, -14, 22, 4);
+      ctx.fillRect(tx + 4, -6, 22, 4);
+    };
+    drawTire(-78 + yaw * 0.2);
+    drawTire(48 + yaw * 0.2);
 
-    // Bumpers
-    ctx.fillStyle = '#333333';
-    ctx.fillRect(w/2 - 1, -h/2 + 4, 1, h - 8); // Front
-    ctx.fillRect(-w/2, -h/2 + 4, 1, h - 8); // Rear
+    // 4. Lower Rear Diffuser & Dual Twin Exhaust Pipes
+    ctx.fillStyle = '#1e242b';
+    ctx.fillRect(-52 + yaw * 0.25, -18, 104, 14);
+
+    // Exhaust tips
+    ctx.fillStyle = '#7f8c8d';
+    ctx.fillRect(-42 + yaw * 0.25, -12, 16, 7);
+    ctx.fillRect(26 + yaw * 0.25, -12, 16, 7);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-39 + yaw * 0.25, -10, 10, 4);
+    ctx.fillRect(29 + yaw * 0.25, -10, 10, 4);
+
+    // Nitro / Exhaust Flames at high speed!
+    if (this.speed > 180 && !this.isBraking) {
+      const flameLen = 6 + (Math.abs(Math.sin(this.wheelPhase * 3)) * 10);
+      ctx.fillStyle = '#00d2ff';
+      ctx.fillRect(-38 + yaw * 0.25, -7, 8, flameLen);
+      ctx.fillRect(30 + yaw * 0.25, -7, 8, flameLen);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-36 + yaw * 0.25, -7, 4, flameLen * 0.6);
+      ctx.fillRect(32 + yaw * 0.25, -7, 4, flameLen * 0.6);
+    }
+
+    // 5. Lower Wide Aerodynamic Body & Side Fenders (White Supercar)
+    ctx.fillStyle = '#dce1e7';
+    ctx.beginPath();
+    ctx.moveTo(-82 + yaw * 0.15, -16);
+    ctx.lineTo(82 + yaw * 0.15, -16);
+    ctx.lineTo(74 + yaw * 0.45, -46);
+    ctx.lineTo(-74 + yaw * 0.45, -46);
+    ctx.closePath();
+    ctx.fill();
+
+    // Main bright white rear fender highlight
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-72 + yaw * 0.3, -44, 144, 16);
+
+    // Side air intakes visible on flanks
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(-70 + yaw * 0.3, -38, 14, 6);
+    ctx.fillRect(56 + yaw * 0.3, -38, 14, 6);
+
+    // 6. Iconic Top Gear 3000 Rear Tail Panel & Taillights
+    ctx.fillStyle = '#191d24';
+    ctx.fillRect(-68 + yaw * 0.3, -41, 136, 15);
+
+    // Glowing Red/Orange Quad Taillights (brighter & wider glow when braking!)
+    const lightColor = this.isBraking ? '#ff1e1e' : '#e84118';
+    const innerLight = this.isBraking ? '#ff9f1a' : '#ff6b6b';
+
+    if (this.isBraking) {
+      ctx.fillStyle = 'rgba(255, 30, 30, 0.35)';
+      ctx.fillRect(-72 + yaw * 0.3, -45, 52, 22);
+      ctx.fillRect(20 + yaw * 0.3, -45, 52, 22);
+    }
+
+    ctx.fillStyle = lightColor;
+    // Left dual taillight bar
+    ctx.fillRect(-64 + yaw * 0.3, -39, 20, 11);
+    ctx.fillRect(-41 + yaw * 0.3, -39, 16, 11);
+    // Right dual taillight bar
+    ctx.fillRect(25 + yaw * 0.3, -39, 16, 11);
+    ctx.fillRect(44 + yaw * 0.3, -39, 20, 11);
+
+    ctx.fillStyle = innerLight;
+    ctx.fillRect(-61 + yaw * 0.3, -36, 14, 5);
+    ctx.fillRect(47 + yaw * 0.3, -36, 14, 5);
+
+    // Center License Plate ("ATROPELIS")
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(-16 + yaw * 0.3, -39, 32, 11);
+    ctx.fillStyle = '#111';
+    ctx.fillRect(-13 + yaw * 0.3, -35, 26, 3);
+
+    // 7. Upper Cabin / Fastback Rear Windshield & Louvers
+    ctx.fillStyle = '#eef2f7';
+    ctx.beginPath();
+    ctx.moveTo(-64 + yaw * 0.45, -46);
+    ctx.lineTo(64 + yaw * 0.45, -46);
+    ctx.lineTo(42 + yaw * 0.75, -72);
+    ctx.lineTo(-42 + yaw * 0.75, -72);
+    ctx.closePath();
+    ctx.fill();
+
+    // Tinted Rear Windshield
+    ctx.fillStyle = '#1e272e';
+    ctx.beginPath();
+    ctx.moveTo(-50 + yaw * 0.5, -48);
+    ctx.lineTo(50 + yaw * 0.5, -48);
+    ctx.lineTo(34 + yaw * 0.75, -68);
+    ctx.lineTo(-34 + yaw * 0.75, -68);
+    ctx.closePath();
+    ctx.fill();
+
+    // Horizon sky reflection stripe on rear glass
+    ctx.fillStyle = 'rgba(240, 104, 72, 0.35)';
+    ctx.fillRect(-28 + yaw * 0.6, -63, 56, 3);
+    ctx.fillRect(-36 + yaw * 0.55, -56, 72, 3);
+
+    // 8. Top Gear 3000 Elevated Rear Wing / Spoiler
+    // Wing struts
+    ctx.fillStyle = '#7f8c8d';
+    ctx.fillRect(-52 + yaw * 0.5, -62, 6, 18);
+    ctx.fillRect(46 + yaw * 0.5, -62, 6, 18);
+
+    // Main spoiler blade
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-74 + yaw * 0.55, -67, 148, 8);
+    ctx.fillStyle = '#cfd6de';
+    ctx.fillRect(-74 + yaw * 0.55, -61, 148, 3);
+
+    // Red racing winglet endplates
+    ctx.fillStyle = '#e74c3c';
+    ctx.fillRect(-76 + yaw * 0.55, -70, 6, 14);
+    ctx.fillRect(70 + yaw * 0.55, -70, 6, 14);
 
     ctx.restore();
   }

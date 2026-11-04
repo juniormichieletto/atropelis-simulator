@@ -126,3 +126,8 @@ dist/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Test reports & coverage
+coverage/
+test-results/
+playwright-report/

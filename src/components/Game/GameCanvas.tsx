@@ -11,6 +11,15 @@ interface GameCanvasProps {
   onGameOver: (score: number) => void;
 }
 
+interface ScorePopup {
+  id: number;
+  text: string;
+  color: string;
+  x: number;
+  y: number;
+  life: number;
+}
+
 export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
@@ -18,38 +27,41 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute in seconds
   const [showControls, setShowControls] = useState(true);
 
-  // Game Instances (initialized properly in useEffect)
-  const playerRef = useRef<PlayerCar>(new PlayerCar(1100, 100));
+  // Start on a main city road facing East (angle = 0)
+  const playerRef = useRef<PlayerCar>(new PlayerCar(450, 850));
   const inputRef = useRef<InputManager | null>(null);
   const tileMapRef = useRef<TileMap>(new TileMap());
   const entityManagerRef = useRef<EntityManager>(new EntityManager());
   const scoreRef = useRef(score);
+  const showControlsRef = useRef(showControls);
   const onGameOverRef = useRef(onGameOver);
-  const speedTextRef = useRef<HTMLDivElement>(null);
-
-  const zoom = 1.5;
+  const speedTextRef = useRef<HTMLSpanElement>(null);
+  const gearTextRef = useRef<HTMLSpanElement>(null);
+  const rpmFillRef = useRef<HTMLDivElement>(null);
 
   const isPointerDownRef = useRef(false);
+  const shakeTimerRef = useRef(0);
+  const popupsRef = useRef<ScorePopup[]>([]);
+  const nextPopupIdRef = useRef(1);
 
   // Keep refs in sync
   useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => { showControlsRef.current = showControls; }, [showControls]);
   useEffect(() => { onGameOverRef.current = onGameOver; }, [onGameOver]);
 
-  const handleInteraction = (clientX: number, clientY: number) => {
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      onGameOverRef.current(scoreRef.current);
+    }
+  }, [timeLeft]);
+
+  const handleInteraction = (clientX: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const player = playerRef.current;
-
-    // Convert screen coordinates to game coordinates
-    // Game coord = (Screen / Zoom) - (CanvasCenter / Zoom) + PlayerPos
-    const gameX = (clientX / zoom) - (canvas.width / 2 / zoom) + player.x;
-    const gameY = (clientY / zoom) - (canvas.height / 2 / zoom) + player.y;
-
-    player.setTarget(gameX, gameY);
+    playerRef.current.setPointerScreenX(clientX, canvas.width);
   };
 
   useEffect(() => {
-    // Lazy init InputManager once
     if (!inputRef.current) {
       inputRef.current = new InputManager();
     }
@@ -58,17 +70,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       setDimensions({ width: window.innerWidth, height: window.innerHeight });
     };
     window.addEventListener('resize', handleResize);
-    
+
+    const handleKeyDownDismiss = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
+        setShowControls(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDownDismiss);
+
+    const isHudTarget = (target: EventTarget | null) => {
+      return target instanceof Element && Boolean(target.closest('.game-hud') || target.closest('.quit-btn'));
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
-      // Don't trigger if clicking on HUD elements
-      if ((e.target as HTMLElement).closest('.game-hud') || (e.target as HTMLElement).closest('.quit-btn')) return;
+      if (isHudTarget(e.target)) return;
       isPointerDownRef.current = true;
-      handleInteraction(e.clientX, e.clientY);
+      handleInteraction(e.clientX);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
       if (isPointerDownRef.current) {
-        handleInteraction(e.clientX, e.clientY);
+        handleInteraction(e.clientX);
       }
     };
 
@@ -78,16 +100,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
 
     const handleTouchStart = (e: TouchEvent) => {
-      if ((e.target as HTMLElement).closest('.game-hud') || (e.target as HTMLElement).closest('.quit-btn')) return;
+      if (isHudTarget(e.target)) return;
       isPointerDownRef.current = true;
       if (e.touches[0]) {
-        handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+        handleInteraction(e.touches[0].clientX);
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (isPointerDownRef.current && e.touches[0]) {
-        handleInteraction(e.touches[0].clientX, e.touches[0].clientY);
+        handleInteraction(e.touches[0].clientX);
       }
     };
 
@@ -109,18 +131,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          onGameOverRef.current(scoreRef.current);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    // Auto-hide controls after 5 seconds
-    const controlsTimer = setTimeout(() => setShowControls(false), 5000);
+    const controlsTimer = setTimeout(() => setShowControls(false), 4000);
 
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keydown', handleKeyDownDismiss);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
@@ -135,7 +156,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         inputRef.current = null;
       }
     };
-  }, []); // Only run once on mount
+  }, []);
 
   const update = (dt: number) => {
     const player = playerRef.current;
@@ -147,31 +168,78 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     const oldX = player.x;
     const oldY = player.y;
 
-    player.update(dt, input);
+    // Auto-accelerate is active once the controls overlay is dismissed
+    player.update(dt, {
+      ...input,
+      autoAccelerate: !showControlsRef.current,
+    });
 
-    // Wall (Building) Collision
+    // Update continuous Top Gear 3000 engine sound & 5-speed transmission pitch
+    soundService.updateEngineSound(player.speed, player.steerVisual, player.isBraking);
+
+    // Wall (Building / Water) Collision with smooth wall-sliding
     if (tileMap.isColliding(player.x, player.y)) {
-      player.x = oldX;
-      player.y = oldY;
       const collisionForce = Math.abs(player.speed);
-      player.speed = -player.speed * 0.5; // Bounce back
-      if (collisionForce > 20) {
+      const canSlideX = !tileMap.isColliding(player.x, oldY);
+      const canSlideY = !tileMap.isColliding(oldX, player.y);
+
+      if (canSlideX) {
+        player.y = oldY;
+        player.speed *= 0.92;
+      } else if (canSlideY) {
+        player.x = oldX;
+        player.speed *= 0.92;
+      } else {
+        player.x = oldX;
+        player.y = oldY;
+        player.speed = -player.speed * 0.45; // Bounce back on head-on hit
+      }
+
+      if (collisionForce > 45 && shakeTimerRef.current <= 0) {
         soundService.playHitSound('WALL');
+        shakeTimerRef.current = 0.15;
       }
     }
 
+    // Update screen shake timer & floating score popups
+    if (shakeTimerRef.current > 0) {
+      shakeTimerRef.current = Math.max(0, shakeTimerRef.current - dt);
+    }
+
+    popupsRef.current.forEach(p => {
+      p.y -= 55 * dt;
+      p.life -= dt;
+    });
+    popupsRef.current = popupsRef.current.filter(p => p.life > 0);
+
     // Entity Collision
-    entityManager.update(dt, player.x, player.y, tileMap);
+    entityManager.update(dt, player.x, player.y, tileMap, player.angle);
     entityManager.entities.forEach(entity => {
+      if (!entity.isAlive) return;
       const dist = Math.hypot(entity.x - player.x, entity.y - player.y);
       if (dist < (player.width / 2 + entity.width / 2)) {
         // Hit!
         setScore(prev => prev + entity.points);
         entity.isAlive = false;
         soundService.playHitSound(entity.type);
+        shakeTimerRef.current = entity.type === 'CAR' ? 0.22 : 0.1;
+
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const sign = entity.points > 0 ? '+' : '';
+          popupsRef.current.push({
+            id: nextPopupIdRef.current++,
+            text: `${sign}${entity.points} PTS`,
+            color: entity.points > 0 ? '#00e5ff' : '#ff2a85',
+            x: canvas.width * 0.5 + (Math.random() - 0.5) * 90,
+            y: canvas.height - 155,
+            life: 0.85,
+          });
+        }
+
         // Small speed penalty on hit for other cars
         if (entity.type === 'CAR') {
-         player.speed *= 0.8;
+          player.speed *= 0.7;
         }
       }
     });
@@ -183,55 +251,128 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
     const player = playerRef.current;
-    
+    const tileMap = tileMapRef.current;
+    const entityManager = entityManagerRef.current;
+
+    // 3D Camera parameters (Behind-the-Car Top Gear 3000 view)
+    const camAngle = player.angle - player.steerVisual * 0.1;
+    const camDist = 82;
+    const camX = player.x - Math.cos(camAngle) * camDist;
+    const camY = player.y - Math.sin(camAngle) * camDist;
+    const camHeight = 52;
+
+    const shakeX = shakeTimerRef.current > 0 ? (Math.random() - 0.5) * 10 : 0;
+    const shakeY = shakeTimerRef.current > 0 ? (Math.random() - 0.5) * 10 : 0;
+    const horizonY = Math.floor(H * 0.38) + Math.round(player.bounceOffset * 0.5) + shakeY;
+    const focalLength = W * 0.65;
+
     ctx.save();
-    // ZOOM: 1.5x
-    const zoom = 1.5;
-    ctx.scale(zoom, zoom);
-    
-    // Center camera on player (adjusted for zoom)
-    ctx.translate(
-      (canvas.width / 2) / zoom - player.x, 
-      (canvas.height / 2) / zoom - player.y
+    if (shakeX !== 0) {
+      ctx.translate(shakeX, 0);
+    }
+
+    // 1. Draw Sky, Parallax Horizon & Mode 7 Ground Plane
+    tileMap.drawSkyAndGround(ctx, camX, camY, camAngle, camHeight, horizonY, focalLength, W, H);
+
+    // 2. Collect and Depth-Sort 3D Buildings, Roadside Neon Props & 3D Entities
+    const buildingDrawables = tileMap.getVisibleBuildingDrawables(
+      camX,
+      camY,
+      camAngle,
+      camHeight,
+      horizonY,
+      focalLength,
+      W
+    );
+    const entityDrawables = entityManager.getVisibleEntityDrawables(
+      camX,
+      camY,
+      camAngle,
+      camHeight,
+      horizonY,
+      focalLength,
+      W
     );
 
-    tileMapRef.current.draw(ctx, player.x, player.y, canvas.width / zoom, canvas.height / zoom);
-    entityManagerRef.current.draw(ctx);
-    player.draw(ctx);
+    const allDrawables = [...buildingDrawables, ...entityDrawables];
+    allDrawables.sort((a, b) => b.depth - a.depth);
+    for (const item of allDrawables) {
+      item.draw(ctx);
+    }
+
+    // 3. Draw Player Car in Top Gear 3000 Behind-the-Car Perspective
+    player.drawRearView(ctx, W, H);
+
+    // 4. Draw Floating Hit Score Popups
+    for (const p of popupsRef.current) {
+      ctx.save();
+      ctx.font = 'bold 16px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#09051d';
+      ctx.fillText(p.text, p.x + 2, p.y + 2);
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.text, p.x, p.y);
+      ctx.restore();
+    }
 
     ctx.restore();
 
-    // MINIMAP
+    // 5. RADAR MINIMAP (with 3D Camera View Cone)
     const mapW = 150;
     const mapH = 150;
-    const mapX = canvas.width - mapW - 20;
+    const mapX = W - mapW - 20;
     const mapY = 20;
-    
-    const { scaleX, scaleY } = tileMapRef.current.drawMinimap(ctx, mapX, mapY, mapW, mapH);
-    
-    // Player dot on minimap
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(mapX + player.x * scaleX, mapY + player.y * scaleY, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1;
-    ctx.stroke();
 
-    // Entity dots on minimap (optional but nice)
-    entityManagerRef.current.entities.forEach(e => {
-        if (e.type === 'CAR') ctx.fillStyle = '#ff3333';
-        else ctx.fillStyle = '#ffffcc';
-        ctx.beginPath();
-        ctx.arc(mapX + e.x * scaleX, mapY + e.y * scaleY, 2, 0, Math.PI * 2);
-        ctx.fill();
+    const { scaleX, scaleY } = tileMap.drawMinimap(ctx, mapX, mapY, mapW, mapH);
+
+    // Entity dots on radar minimap
+    entityManager.entities.forEach(e => {
+      ctx.fillStyle = e.type === 'CAR' ? '#ff2a85' : '#ffbe0b';
+      ctx.beginPath();
+      ctx.arc(mapX + e.x * scaleX, mapY + e.y * scaleY, 2, 0, Math.PI * 2);
+      ctx.fill();
     });
 
-    // Update HUD Speed via Ref to avoid render cycle issues
+    // Camera FOV Cone on radar minimap
+    const px = mapX + player.x * scaleX;
+    const py = mapY + player.y * scaleY;
+    const coneLen = 30;
+    const fovHalf = 0.55;
+    ctx.fillStyle = 'rgba(0, 229, 255, 0.35)';
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + Math.cos(camAngle - fovHalf) * coneLen, py + Math.sin(camAngle - fovHalf) * coneLen);
+    ctx.lineTo(px + Math.cos(camAngle + fovHalf) * coneLen, py + Math.sin(camAngle + fovHalf) * coneLen);
+    ctx.closePath();
+    ctx.fill();
+
+    // Player dot on radar minimap
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#00e5ff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Update Top Gear 3000 HUD Tachometer, Gear & Speed via Refs
+    const absSpeed = Math.abs(Math.round(player.speed));
+    const gearNum = player.speed < -5 ? 'R' : Math.min(5, Math.max(1, Math.ceil(absSpeed / 72))).toString();
+    const rpmPct = Math.min(100, Math.round((absSpeed / player.maxSpeed) * 100));
+
     if (speedTextRef.current) {
-        speedTextRef.current.textContent = `SPEED: ${Math.abs(Math.round(player.speed))} KM/H`;
+      speedTextRef.current.textContent = `${absSpeed.toString().padStart(3, '0')} KM/H`;
+    }
+    if (gearTextRef.current) {
+      gearTextRef.current.textContent = `G${gearNum}`;
+    }
+    if (rpmFillRef.current) {
+      rpmFillRef.current.style.width = `${rpmPct}%`;
     }
   };
 
@@ -247,35 +388,59 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       />
 
       {showControls && (
-        <div className="controls-overlay" onClick={() => setShowControls(false)}>
+        <div
+          className="controls-overlay"
+          onClick={() => {
+            soundService.playUiSound();
+            setShowControls(false);
+          }}
+        >
           <div className="controls-card">
-            <h3>GAME INSTRUCTIONS</h3>
-            <p className="controls-title">CONTROLS</p>
-            <p><strong>CLICK & HOLD</strong> or <strong>DRAG</strong> TO DRIVE</p>
-            
+            <h3>TOP GEAR 3000 MODE</h3>
+            <p className="controls-title">CONTROLS (AUTO-GAS)</p>
+            <p><strong>A / D</strong> or <strong>LEFT / RIGHT ARROWS</strong> TO STEER</p>
+            <p><strong>HOLD LEFT / RIGHT SCREEN</strong> TO STEER (TOUCH/MOUSE)</p>
+            <p><strong>W / UP</strong> NITRO BOOST &bull; <strong>S / DOWN</strong> BRAKE / REV</p>
+
             <div className="scoring-guide">
-              <p className="scoring-title">SCORING GUIDE</p>
+              <p className="scoring-title">TARGET DATA</p>
               <div className="score-item person">PERSON: <span className="pts">+1 PT</span></div>
               <div className="score-item bike">BIKE: <span className="pts">+2 PTS</span></div>
               <div className="score-item motorcycle">MOTORCYCLE: <span className="pts">+5 PTS</span></div>
-              <div className="score-item car">OTHER CAR: <span className="pts penalty">-5 PTS</span></div>
+              <div className="score-item car">TRAFFIC CAR: <span className="pts penalty">-5 PTS</span></div>
             </div>
 
-            <p className="hint">Tap anywhere to close</p>
+            <p className="hint">Tap or press any key to launch</p>
           </div>
         </div>
       )}
-      
+
       <div className="game-hud bottom">
         <div className="hud-group">
-            <div className="hud-item score">SCORE: {score}</div>
-            <div ref={speedTextRef} className="hud-item speed">SPEED: 0 KM/H</div>
+          <div className="hud-item score">SCORE: {score}</div>
+          <div className="hud-item speed">
+            <div className="tach-row">
+              <span ref={gearTextRef} className="gear-badge">G1</span>
+              <span ref={speedTextRef}>000 KM/H</span>
+            </div>
+            <div className="rpm-bar-track">
+              <div ref={rpmFillRef} className="rpm-bar-fill" />
+            </div>
+          </div>
         </div>
-        <div className="hud-item timer">TIME: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</div>
-        <button className="quit-btn" onClick={() => onGameOver(score)}>QUIT</button>
+        <div className="hud-group right">
+          <div className="hud-item timer">TIME: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</div>
+          <button
+            className="quit-btn"
+            onClick={() => {
+              soundService.playUiSound();
+              onGameOver(score);
+            }}
+          >
+            ABORT
+          </button>
+        </div>
       </div>
-
-      {/* <MobileControls onInput={(input) => inputRef.current?.setManualInput(input)} /> */}
     </div>
   );
 };
