@@ -158,6 +158,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
   }, []);
 
+  const getCameraParams = (H: number, player: PlayerCar, tileMap: TileMap) => {
+    const camAngle = player.angle - player.steerVisual * 0.1;
+    const cosCam = Math.cos(camAngle);
+    const sinCam = Math.sin(camAngle);
+    const baseCamDist = 82;
+    let camDist = baseCamDist;
+    for (let testDist = 20; testDist <= baseCamDist; testDist += 12) {
+      const testX = player.x - cosCam * testDist;
+      const testY = player.y - sinCam * testDist;
+      if (tileMap.isColliding(testX, testY, 6)) {
+        camDist = Math.max(24, testDist - 12);
+        break;
+      }
+    }
+    const camX = player.x - cosCam * camDist;
+    const camY = player.y - sinCam * camDist;
+    const camHeight = 52;
+    const baseHorizonY = Math.floor(H * 0.38);
+    // Lock focalLength so that (player.x, player.y) at depth baseCamDist projects directly onto the car sprite at y = H - 92
+    const carContactY = H - 92;
+    const focalLength = Math.max(320, ((carContactY - baseHorizonY) * baseCamDist) / camHeight);
+
+    return { camAngle, cosCam, sinCam, camDist, camX, camY, camHeight, baseHorizonY, focalLength };
+  };
+
   const update = (dt: number) => {
     const player = playerRef.current;
     if (!inputRef.current) return;
@@ -177,8 +202,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     // Update continuous Top Gear 3000 engine sound & 5-speed transmission pitch
     soundService.updateEngineSound(player.speed, player.steerVisual, player.isBraking);
 
-    // Wall (Building / Water) Hull Collision with smooth wall-sliding & angular deflection
-    const hullRadius = 15;
+    // Wall (Building / Water) Hull Collision with tight 7px hull matching the 3D car body
+    const hullRadius = 7;
     if (tileMap.isColliding(player.x, player.y, hullRadius)) {
       const collisionForce = Math.abs(player.speed);
       const canSlideX = !tileMap.isColliding(player.x, oldY, hullRadius);
@@ -227,44 +252,69 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     });
     popupsRef.current = popupsRef.current.filter(p => p.life > 0);
 
-    // Entity Collision (Oriented Bounding Box matching 3D rear-view supercar bumper & fenders)
-    const cosP = Math.cos(player.angle);
-    const sinP = Math.sin(player.angle);
+    // Entity Collision: project entities with the exact 3D camera matrix so hits only trigger
+    // when an obstacle visually touches the player car's bumper/fenders on screen!
+    const canvas = canvasRef.current;
+    const W = canvas ? canvas.width : window.innerWidth;
+    const H = canvas ? canvas.height : window.innerHeight;
+    const { cosCam, sinCam, camX, camY, camHeight, baseHorizonY, focalLength } = getCameraParams(
+      H,
+      player,
+      tileMap
+    );
+
+    const carScale = Math.max(0.85, Math.min(1.25, W / 900));
+    const carScreenX = W * 0.5 + player.steerVisual * 26;
+    const carBottomY = H - 78;
+    // Visual bumper/fender footprint of the player's car on screen
+    const carHalfW = 58 * carScale;
+    const carFrontY = carBottomY - 36 * carScale;
+    const carRearY = carBottomY + 6 * carScale;
+
     entityManager.update(dt, player.x, player.y, tileMap, player.angle);
 
     entityManager.entities.forEach(entity => {
       if (!entity.isAlive || entity.isHit) return;
 
-      const dx = entity.x - player.x;
-      const dy = entity.y - player.y;
-      // Transform entity offset into car's local coordinate frame
-      const forwardDist = dx * cosP + dy * sinP;
-      const lateralDist = -dx * sinP + dy * cosP;
+      const dx = entity.x - camX;
+      const dy = entity.y - camY;
+      const tz = dx * cosCam + dy * sinCam;
+      if (tz < 18 || tz > 130) return;
 
-      const halfFront = 26 + entity.width * 0.4;
-      const halfRear = 14 + entity.width * 0.3;
-      const halfWidth = 22 + entity.width * 0.45;
+      const tx = -dx * sinCam + dy * cosCam;
+      const entityScreenX = W * 0.5 + (tx / tz) * focalLength;
+      const entityScreenY = baseHorizonY + (camHeight / tz) * focalLength;
+      const s = Math.min(focalLength / tz, 10.5);
 
+      const entityVisualHalfW =
+        entity.type === 'PERSON'
+          ? 1.2 * s
+          : entity.type === 'BIKE'
+            ? 1.5 * s
+            : entity.type === 'MOTORCYCLE'
+              ? 2.1 * s
+              : 5.5 * s;
+
+      // Require both vertical road-contact overlap (front bumper to rear wheels) AND horizontal sprite overlap
       if (
-        forwardDist >= -halfRear &&
-        forwardDist <= halfFront &&
-        Math.abs(lateralDist) <= halfWidth
+        entityScreenY >= carFrontY &&
+        entityScreenY <= carRearY &&
+        Math.abs(entityScreenX - carScreenX) <= carHalfW + entityVisualHalfW
       ) {
-        // Hit! Launch entity into 3D accident flight before despawning
+        // Hit! Launch entity into 3D accident flight right from the front bumper
         setScore(prev => prev + entity.points);
         entity.triggerHit(player.x, player.y, player.angle, player.speed);
         soundService.playHitSound(entity.type);
         shakeTimerRef.current = entity.type === 'CAR' ? 0.22 : 0.1;
 
-        const canvas = canvasRef.current;
         if (canvas) {
           const sign = entity.points > 0 ? '+' : '';
           popupsRef.current.push({
             id: nextPopupIdRef.current++,
             text: `${sign}${entity.points} PTS`,
             color: entity.points > 0 ? '#00e5ff' : '#ff2a85',
-            x: canvas.width * 0.5 + (Math.random() - 0.5) * 90,
-            y: canvas.height - 155,
+            x: entityScreenX,
+            y: carFrontY - 20,
             life: 0.85,
           });
         }
@@ -272,7 +322,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         // Speed penalty & slight deflection on hit for other cars
         if (entity.type === 'CAR') {
           player.speed *= 0.65;
-          player.angle += (lateralDist >= 0 ? -1 : 1) * 0.15;
+          player.angle += (entityScreenX >= carScreenX ? -1 : 1) * 0.15;
         }
       }
     });
@@ -292,27 +342,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     const tileMap = tileMapRef.current;
     const entityManager = entityManagerRef.current;
 
-    // 3D Camera parameters (Behind-the-Car Top Gear 3000 view) with anti-wall-clipping raycast
-    const camAngle = player.angle - player.steerVisual * 0.1;
-    const cosCam = Math.cos(camAngle);
-    const sinCam = Math.sin(camAngle);
-    let camDist = 82;
-    for (let testDist = 20; testDist <= 82; testDist += 12) {
-      const testX = player.x - cosCam * testDist;
-      const testY = player.y - sinCam * testDist;
-      if (tileMap.isColliding(testX, testY, 8)) {
-        camDist = Math.max(24, testDist - 12);
-        break;
-      }
-    }
-    const camX = player.x - cosCam * camDist;
-    const camY = player.y - sinCam * camDist;
-    const camHeight = 52;
+    // 3D Camera parameters (shared with collision projection)
+    const { camAngle, camX, camY, camHeight, baseHorizonY, focalLength } = getCameraParams(
+      H,
+      player,
+      tileMap
+    );
 
     const shakeX = shakeTimerRef.current > 0 ? (Math.random() - 0.5) * 10 : 0;
     const shakeY = shakeTimerRef.current > 0 ? (Math.random() - 0.5) * 10 : 0;
-    const horizonY = Math.floor(H * 0.38) + Math.round(player.bounceOffset * 0.5) + shakeY;
-    const focalLength = W * 0.65;
+    const horizonY = baseHorizonY + Math.round(player.bounceOffset * 0.5) + shakeY;
 
     ctx.save();
     if (shakeX !== 0) {
@@ -403,13 +442,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // Update Top Gear 3000 HUD Tachometer, Gear & Speed via Refs
-    const absSpeed = Math.abs(Math.round(player.speed));
-    const gearNum = player.speed < -5 ? 'R' : Math.min(5, Math.max(1, Math.ceil(absSpeed / 72))).toString();
-    const rpmPct = Math.min(100, Math.round((absSpeed / player.maxSpeed) * 100));
+    // Update Top Gear 3000 HUD Tachometer, Gear & Speed via Refs (scaled to realistic city KM/H)
+    const rawSpeed = Math.abs(player.speed);
+    const displayKmh = Math.round(rawSpeed * 0.28); // ~98 KM/H at cruising maxSpeed (350), ~108 KM/H with boost
+    const gearThresholds = [22, 45, 68, 90, 120];
+    let gearIdx = 0;
+    while (gearIdx < gearThresholds.length - 1 && displayKmh > gearThresholds[gearIdx]) {
+      gearIdx++;
+    }
+    const gearNum = player.speed < -5 ? 'R' : (gearIdx + 1).toString();
+    const prevThreshold = gearIdx === 0 ? 0 : gearThresholds[gearIdx - 1];
+    const gearSpan = gearThresholds[gearIdx] - prevThreshold;
+    const rpmPct =
+      rawSpeed < 2
+        ? 0
+        : Math.min(100, Math.max(15, Math.round(((displayKmh - prevThreshold) / gearSpan) * 100)));
 
     if (speedTextRef.current) {
-      speedTextRef.current.textContent = `${absSpeed.toString().padStart(3, '0')} KM/H`;
+      speedTextRef.current.textContent = `${displayKmh.toString().padStart(3, '0')} KM/H`;
     }
     if (gearTextRef.current) {
       gearTextRef.current.textContent = `G${gearNum}`;

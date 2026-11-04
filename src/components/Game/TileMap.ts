@@ -561,7 +561,7 @@ export class TileMap {
 
         const style = (r + c) % 3;
         const bHeight = style === 0 ? 115 : style === 1 ? 95 : 155;
-        const inset = 6;
+        const inset = 2;
 
         const x0 = c * this.tileSize + inset;
         const x1 = (c + 1) * this.tileSize - inset;

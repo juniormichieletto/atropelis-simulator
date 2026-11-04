@@ -28,9 +28,9 @@ describe('App & GameCanvas Integration', () => {
     fireEvent.change(input, { target: { value: 'RUNNER3000' } });
     fireEvent.click(screen.getByRole('button', { name: /ENGAGE/i }));
 
-    // 2. Arrives on MenuView showing pilot name; test Change Pilot flow
+    // 2. Arrives on MenuView showing pilot name; test Change Name flow
     expect(screen.getByText(/RUNNER3000/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /CHANGE PILOT/i }));
+    fireEvent.click(screen.getByRole('button', { name: /CHANGE NAME/i }));
     expect(screen.getByText(/ENTER PILOT CALLSIGN/i)).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/PILOT NAME/i), { target: { value: 'ACE3000' } });
     fireEvent.click(screen.getByRole('button', { name: /ENGAGE/i }));
@@ -72,6 +72,6 @@ describe('App & GameCanvas Integration', () => {
     });
 
     // Returns to MenuView after timer expires
-    expect(screen.getByText(/3000 HORIZON EDITION/i)).toBeInTheDocument();
+    expect(screen.getByText(/START NEW GAME/i)).toBeInTheDocument();
   });
 });

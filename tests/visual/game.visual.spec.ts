@@ -20,14 +20,14 @@ test.describe('Atropelis Simulator - Top Gear 3000 Visual & Canvas Suite', () =>
     });
   });
 
-  test('renders 3000 Horizon Edition Main Menu screen', async ({ page }) => {
+  test('renders Main Menu screen with original background image', async ({ page }) => {
     await page.goto('/');
     await page.evaluate(() => {
       localStorage.setItem('atropelis_user_name', 'PLAYER3000');
     });
     await page.reload();
 
-    await expect(page.locator('.edition-badge')).toHaveText('3000 HORIZON EDITION');
+    await expect(page.locator('.welcome-text')).toContainText('WELCOME,');
     await expect(page.locator('.nickname')).toHaveText('PLAYER3000');
 
     await expect(page).toHaveScreenshot('main-menu.png', {

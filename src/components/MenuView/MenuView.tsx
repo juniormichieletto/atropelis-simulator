@@ -1,5 +1,6 @@
 import React from 'react';
 import './MenuView.css';
+import backgroundImage from '../../../initial_screen.png';
 import { soundService } from '../../services/SoundService';
 
 interface MenuViewProps {
@@ -16,11 +17,10 @@ export const MenuView: React.FC<MenuViewProps> = ({
   onChangeName,
 }) => {
   return (
-    <div className="menu-container synthwave-screen">
+    <div className="menu-container" style={{ backgroundImage: `url(${backgroundImage})` }}>
       <div className="menu-card">
-        <div className="edition-badge">3000 HORIZON EDITION</div>
         <h1>ATROPELIS SIMULATOR</h1>
-        <p className="welcome-text">PILOT READY: <span className="nickname">{userName}</span></p>
+        <p className="welcome-text">WELCOME, <span className="nickname">{userName}</span>!</p>
         
         <div className="menu-buttons">
           <button
@@ -48,7 +48,7 @@ export const MenuView: React.FC<MenuViewProps> = ({
               onChangeName();
             }}
           >
-            CHANGE PILOT
+            CHANGE NAME
           </button>
         </div>
       </div>
