@@ -35,6 +35,10 @@ describe('TileMap', () => {
 
     // Road tile (row 8, col 5 -> x=550, y=850) does not collide
     expect(map.isColliding(550, 850)).toBe(false);
+    expect(map.isColliding(550, 850, 15)).toBe(false);
+
+    // Point just outside building at (x=500, y=350) collides when hull radius=15 overlaps building at x>=500
+    expect(map.isColliding(492, 350, 15)).toBe(true);
   });
 
   it('renders Mode 7 sky and ground plane without errors', () => {

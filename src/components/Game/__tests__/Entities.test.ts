@@ -36,6 +36,30 @@ describe('Entity & EntityManager', () => {
     expect(outEntity.isAlive).toBe(false);
   });
 
+  it('launches hit entities into a 3D accident arc, bounces on ground, and removes them after flight', () => {
+    const person = new Entity(500, 850, 'PERSON');
+    person.triggerHit(480, 850, 0, 320);
+
+    expect(person.isHit).toBe(true);
+    expect(person.vz).toBeGreaterThan(0);
+
+    // Step mid-air flight
+    person.update(0.15);
+    expect(person.z).toBeGreaterThan(0);
+    expect(person.spinAngle).not.toBe(0);
+    expect(person.isAlive).toBe(true);
+
+    // Render while airborne
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    person.draw3D(ctx, 640, 420, 8, 0.2);
+
+    // Advance past maxHitDuration -> bounces and then despawns
+    person.update(0.45);
+    person.update(0.5);
+    expect(person.isAlive).toBe(false);
+  });
+
   it('renders 3D perspective sprites for all entity types', () => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;

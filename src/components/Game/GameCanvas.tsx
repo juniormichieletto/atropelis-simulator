@@ -177,22 +177,37 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     // Update continuous Top Gear 3000 engine sound & 5-speed transmission pitch
     soundService.updateEngineSound(player.speed, player.steerVisual, player.isBraking);
 
-    // Wall (Building / Water) Collision with smooth wall-sliding
-    if (tileMap.isColliding(player.x, player.y)) {
+    // Wall (Building / Water) Hull Collision with smooth wall-sliding & angular deflection
+    const hullRadius = 15;
+    if (tileMap.isColliding(player.x, player.y, hullRadius)) {
       const collisionForce = Math.abs(player.speed);
-      const canSlideX = !tileMap.isColliding(player.x, oldY);
-      const canSlideY = !tileMap.isColliding(oldX, player.y);
+      const canSlideX = !tileMap.isColliding(player.x, oldY, hullRadius);
+      const canSlideY = !tileMap.isColliding(oldX, player.y, hullRadius);
 
       if (canSlideX) {
         player.y = oldY;
-        player.speed *= 0.92;
+        player.speed *= 0.94;
+        // Gently align car heading toward the horizontal street axis (0 or PI)
+        const targetAxis = Math.cos(player.angle) >= 0 ? 0 : Math.PI;
+        let diff = targetAxis - player.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        player.angle += diff * Math.min(1, dt * 6);
       } else if (canSlideY) {
         player.x = oldX;
-        player.speed *= 0.92;
+        player.speed *= 0.94;
+        // Gently align car heading toward the vertical street axis (PI/2 or -PI/2)
+        const targetAxis = Math.sin(player.angle) >= 0 ? Math.PI / 2 : -Math.PI / 2;
+        let diff = targetAxis - player.angle;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        player.angle += diff * Math.min(1, dt * 6);
       } else {
         player.x = oldX;
         player.y = oldY;
         player.speed = -player.speed * 0.45; // Bounce back on head-on hit
+        // Nudge angle slightly so auto-accelerate doesn't trap the car in a 90-degree bounce loop
+        player.angle += (player.steerVisual >= 0 ? 1 : -1) * 0.32;
       }
 
       if (collisionForce > 45 && shakeTimerRef.current <= 0) {
@@ -212,15 +227,32 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     });
     popupsRef.current = popupsRef.current.filter(p => p.life > 0);
 
-    // Entity Collision
+    // Entity Collision (Oriented Bounding Box matching 3D rear-view supercar bumper & fenders)
+    const cosP = Math.cos(player.angle);
+    const sinP = Math.sin(player.angle);
     entityManager.update(dt, player.x, player.y, tileMap, player.angle);
+
     entityManager.entities.forEach(entity => {
-      if (!entity.isAlive) return;
-      const dist = Math.hypot(entity.x - player.x, entity.y - player.y);
-      if (dist < (player.width / 2 + entity.width / 2)) {
-        // Hit!
+      if (!entity.isAlive || entity.isHit) return;
+
+      const dx = entity.x - player.x;
+      const dy = entity.y - player.y;
+      // Transform entity offset into car's local coordinate frame
+      const forwardDist = dx * cosP + dy * sinP;
+      const lateralDist = -dx * sinP + dy * cosP;
+
+      const halfFront = 26 + entity.width * 0.4;
+      const halfRear = 14 + entity.width * 0.3;
+      const halfWidth = 22 + entity.width * 0.45;
+
+      if (
+        forwardDist >= -halfRear &&
+        forwardDist <= halfFront &&
+        Math.abs(lateralDist) <= halfWidth
+      ) {
+        // Hit! Launch entity into 3D accident flight before despawning
         setScore(prev => prev + entity.points);
-        entity.isAlive = false;
+        entity.triggerHit(player.x, player.y, player.angle, player.speed);
         soundService.playHitSound(entity.type);
         shakeTimerRef.current = entity.type === 'CAR' ? 0.22 : 0.1;
 
@@ -237,9 +269,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
           });
         }
 
-        // Small speed penalty on hit for other cars
+        // Speed penalty & slight deflection on hit for other cars
         if (entity.type === 'CAR') {
-          player.speed *= 0.7;
+          player.speed *= 0.65;
+          player.angle += (lateralDist >= 0 ? -1 : 1) * 0.15;
         }
       }
     });
@@ -259,11 +292,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     const tileMap = tileMapRef.current;
     const entityManager = entityManagerRef.current;
 
-    // 3D Camera parameters (Behind-the-Car Top Gear 3000 view)
+    // 3D Camera parameters (Behind-the-Car Top Gear 3000 view) with anti-wall-clipping raycast
     const camAngle = player.angle - player.steerVisual * 0.1;
-    const camDist = 82;
-    const camX = player.x - Math.cos(camAngle) * camDist;
-    const camY = player.y - Math.sin(camAngle) * camDist;
+    const cosCam = Math.cos(camAngle);
+    const sinCam = Math.sin(camAngle);
+    let camDist = 82;
+    for (let testDist = 20; testDist <= 82; testDist += 12) {
+      const testX = player.x - cosCam * testDist;
+      const testY = player.y - sinCam * testDist;
+      if (tileMap.isColliding(testX, testY, 8)) {
+        camDist = Math.max(24, testDist - 12);
+        break;
+      }
+    }
+    const camX = player.x - cosCam * camDist;
+    const camY = player.y - sinCam * camDist;
     const camHeight = 52;
 
     const shakeX = shakeTimerRef.current > 0 ? (Math.random() - 0.5) * 10 : 0;

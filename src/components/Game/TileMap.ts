@@ -686,11 +686,35 @@ export class TileMap {
     return drawables;
   }
 
-  isColliding(x: number, y: number): boolean {
-    const col = Math.floor(x / this.tileSize);
-    const row = Math.floor(y / this.tileSize);
-    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return true;
-    return this.grid[row][col] === 'BUILDING' || this.grid[row][col] === 'WATER';
+  isColliding(x: number, y: number, radius: number = 0): boolean {
+    if (radius <= 0) {
+      const col = Math.floor(x / this.tileSize);
+      const row = Math.floor(y / this.tileSize);
+      if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return true;
+      return this.grid[row][col] === 'BUILDING' || this.grid[row][col] === 'WATER';
+    }
+
+    // Check bounding points around (x, y) for physical hull collision
+    const offsets = [
+      [0, 0],
+      [radius, 0],
+      [-radius, 0],
+      [0, radius],
+      [0, -radius],
+      [radius * 0.7, radius * 0.7],
+      [-radius * 0.7, radius * 0.7],
+      [radius * 0.7, -radius * 0.7],
+      [-radius * 0.7, -radius * 0.7],
+    ];
+
+    for (const [ox, oy] of offsets) {
+      const col = Math.floor((x + ox) / this.tileSize);
+      const row = Math.floor((y + oy) / this.tileSize);
+      if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return true;
+      const cell = this.grid[row][col];
+      if (cell === 'BUILDING' || cell === 'WATER') return true;
+    }
+    return false;
   }
 
   drawMinimap(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
