@@ -20,11 +20,11 @@ describe('SoundService', () => {
     expect(() => soundService.playHitSound('WALL')).not.toThrow();
   });
 
-  it('runs the 16-bit Top Gear chiptune sequencer and modulates 5-gear engine sound', () => {
+  it('runs the synthwave-rock Top Gear 3000 sequencer and modulates 5-gear engine sound', () => {
     soundService.startBackgroundMusic();
 
-    // Advance through all 64 sequencer steps (4 bars)
-    vi.advanceTimersByTime(8000);
+    // Advance through all 128 sequencer steps (8 bars)
+    vi.advanceTimersByTime(16000);
 
     // Update engine across gears 1..5, reverse, braking, and steering
     soundService.updateEngineSound(40, 0, false);

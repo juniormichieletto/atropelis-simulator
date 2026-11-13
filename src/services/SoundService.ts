@@ -5,9 +5,10 @@ class SoundService {
   private isMusicPaused = false;
   private noiseBuffer: AudioBuffer | null = null;
 
-  // Continuous engine sound nodes
-  private engineOsc1: OscillatorNode | null = null;
-  private engineOsc2: OscillatorNode | null = null;
+  // Continuous multi-harmonic car engine sound nodes
+  private engineOsc1: OscillatorNode | null = null; // Primary firing fundamental (sawtooth)
+  private engineOsc2: OscillatorNode | null = null; // Cylinder harmonic growl (1.5x sawtooth)
+  private engineOsc3: OscillatorNode | null = null; // Deep exhaust sub-rumble (0.5x triangle)
   private engineFilter: BiquadFilterNode | null = null;
   private engineGain: GainNode | null = null;
 
@@ -62,98 +63,138 @@ class SoundService {
 
     switch (type) {
       case 'PERSON': {
-        // 16-bit impact + arcade point pickup chime
-        this.playNoiseBurst(now, 0.08, 900, 0.2);
+        // Satisfying soft impact thump + warm retro arcade score chime
+        this.playNoiseBurst(now, 0.1, 420, 0.28, 'lowpass');
+        this.playImpactThud(now, 160, 55, 0.12, 0.25);
+
         const osc = this.audioCtx.createOscillator();
         const gain = this.audioCtx.createGain();
-        osc.type = 'square';
+        osc.type = 'sine';
         osc.connect(gain);
         gain.connect(this.audioCtx.destination);
         osc.frequency.setValueAtTime(587.33, now); // D5
-        osc.frequency.setValueAtTime(880, now + 0.05); // A5
-        gain.gain.setValueAtTime(0.18, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+        osc.frequency.setValueAtTime(880, now + 0.045); // A5
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.18);
         osc.start(now);
-        osc.stop(now + 0.14);
+        osc.stop(now + 0.18);
         break;
       }
-      case 'BIKE':
+      case 'BIKE': {
+        // Lightweight bicycle frame impact + rim deformation ping
+        this.playNoiseBurst(now, 0.15, 1350, 0.32, 'bandpass', 2.2);
+        this.playImpactThud(now, 240, 65, 0.16, 0.28);
+
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.type = 'sine';
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        osc.frequency.setValueAtTime(1046.5, now); // C6 bell/rim ping
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.22);
+        osc.start(now);
+        osc.stop(now + 0.22);
+        break;
+      }
       case 'MOTORCYCLE': {
-        // Metallic crunch + high-score rising arpeggio chime
-        this.playNoiseBurst(now, 0.14, 1400, 0.25);
-        const notes = type === 'MOTORCYCLE' ? [587.33, 783.99, 1174.66] : [523.25, 659.25, 987.77];
-        notes.forEach((freq, idx) => {
+        // High-speed superbike frame crunch + fairing shatter + rewarding harmonic chime
+        this.playNoiseBurst(now, 0.22, 920, 0.38, 'bandpass', 1.8);
+        this.playNoiseBurst(now + 0.01, 0.14, 2800, 0.24, 'highpass');
+        this.playImpactThud(now, 210, 48, 0.24, 0.36);
+
+        [880, 1318.51].forEach((freq, idx) => {
           if (!this.audioCtx) return;
           const osc = this.audioCtx.createOscillator();
           const gain = this.audioCtx.createGain();
-          osc.type = 'square';
+          osc.type = 'sine';
           osc.connect(gain);
           gain.connect(this.audioCtx.destination);
-          const t = now + idx * 0.045;
+          const t = now + idx * 0.035;
           osc.frequency.setValueAtTime(freq, t);
-          gain.gain.setValueAtTime(0.16, t);
-          gain.gain.exponentialRampToValueAtTime(0.008, t + 0.1);
+          gain.gain.setValueAtTime(0.14, t);
+          gain.gain.exponentialRampToValueAtTime(0.005, t + 0.18);
           osc.start(t);
-          osc.stop(t + 0.1);
+          osc.stop(t + 0.18);
         });
         break;
       }
-      case 'CAR':
+      case 'CAR': {
+        // Visceral automotive multi-layer crash: heavy metal crumple, chassis thud & skid
+        this.playImpactThud(now, 160, 32, 0.34, 0.48);
+        this.playNoiseBurst(now, 0.3, 480, 0.44, 'lowpass', 1.8);
+        this.playNoiseBurst(now, 0.24, 1200, 0.32, 'bandpass', 1.5);
+        this.playNoiseBurst(now + 0.02, 0.18, 3600, 0.18, 'highpass');
+
+        // Screech / metal friction transient
+        const skid = this.audioCtx.createOscillator();
+        const skidFilter = this.audioCtx.createBiquadFilter();
+        const skidGain = this.audioCtx.createGain();
+        skid.type = 'sawtooth';
+        skidFilter.type = 'bandpass';
+        skidFilter.frequency.setValueAtTime(850, now);
+        skidFilter.Q.value = 2.5;
+        skid.frequency.setValueAtTime(720, now);
+        skid.frequency.exponentialRampToValueAtTime(380, now + 0.18);
+        skidGain.gain.setValueAtTime(0.13, now);
+        skidGain.gain.exponentialRampToValueAtTime(0.005, now + 0.18);
+        skid.connect(skidFilter);
+        skidFilter.connect(skidGain);
+        skidGain.connect(this.audioCtx.destination);
+        skid.start(now);
+        skid.stop(now + 0.18);
+        break;
+      }
       case 'WALL': {
-        // Heavy Top Gear collision crunch + low bass thud
-        this.playNoiseBurst(now, 0.26, 450, 0.38);
-        const osc = this.audioCtx.createOscillator();
-        const gain = this.audioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.connect(gain);
-        gain.connect(this.audioCtx.destination);
-        osc.frequency.setValueAtTime(130, now);
-        osc.frequency.exponentialRampToValueAtTime(28, now + 0.28);
-        gain.gain.setValueAtTime(0.38, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.28);
-        osc.start(now);
-        osc.stop(now + 0.28);
+        // Massive concrete barrier slam with low-frequency shockwave & debris crunch
+        this.playImpactThud(now, 190, 24, 0.38, 0.58);
+        this.playNoiseBurst(now, 0.34, 380, 0.48, 'lowpass', 2.0);
+        this.playNoiseBurst(now + 0.02, 0.16, 2200, 0.22, 'bandpass', 1.2);
         break;
       }
     }
   }
 
   /**
-   * Updates the continuous Top Gear 3000 style dual-oscillator engine hum & gear pitch.
+   * Updates the continuous multi-harmonic sports-car engine purr, 5-speed RPM curve,
+   * and exhaust filter resonance.
    */
   updateEngineSound(speed: number, steerAmount: number = 0, isBraking: boolean = false) {
     if (!this.audioCtx || !this.isMusicPlaying) return;
 
-    if (!this.engineOsc1 || !this.engineOsc2 || !this.engineGain || !this.engineFilter) {
+    if (!this.engineOsc1 || !this.engineOsc2 || !this.engineOsc3 || !this.engineGain || !this.engineFilter) {
       this.startEngineNodes();
     }
-    if (!this.engineOsc1 || !this.engineOsc2 || !this.engineGain || !this.engineFilter) return;
+    if (!this.engineOsc1 || !this.engineOsc2 || !this.engineOsc3 || !this.engineGain || !this.engineFilter) return;
 
     const now = this.audioCtx.currentTime;
     const absSpeed = Math.abs(speed);
 
-    // Simulate 5-speed transmission RPM curve like Top Gear 3000
+    // 5-speed transmission RPM curve (realistic rev climb & shift drop per gear)
     const gearSpans = [75, 145, 220, 295, 400];
     let gear = 0;
     while (gear < gearSpans.length - 1 && absSpeed > gearSpans[gear]) {
       gear++;
     }
     const prevSpan = gear === 0 ? 0 : gearSpans[gear - 1];
-    const gearProgress = (absSpeed - prevSpan) / (gearSpans[gear] - prevSpan);
+    const gearProgress = Math.max(0, Math.min(1, (absSpeed - prevSpan) / (gearSpans[gear] - prevSpan)));
 
-    // Base frequency climbs with gear & RPM
-    const baseFreq = 38 + gear * 11 + gearProgress * 42 + absSpeed * 0.08;
+    // Warm V6/V8 fundamental (42 Hz idle -> ~135 Hz redline), plus 5th-harmonic growl & sub-rumble
+    const rpmFactor = isBraking ? Math.max(0.15, gearProgress * 0.72) : gearProgress;
+    const baseFreq = 42 + gear * 9 + rpmFactor * 48 + absSpeed * 0.05;
+    const harmonicFreq = baseFreq * 1.503; // Slight detune on 5th harmonic gives authentic multi-cylinder purr
     const subFreq = baseFreq * 0.5;
 
-    this.engineOsc1.frequency.setTargetAtTime(baseFreq, now, 0.04);
-    this.engineOsc2.frequency.setTargetAtTime(subFreq, now, 0.04);
+    this.engineOsc1.frequency.setTargetAtTime(baseFreq, now, 0.055);
+    this.engineOsc2.frequency.setTargetAtTime(harmonicFreq, now, 0.055);
+    this.engineOsc3.frequency.setTargetAtTime(subFreq, now, 0.055);
 
-    // Open filter as speed increases; slight pitch/filter bite when braking or cornering hard
-    const cutoff = 180 + absSpeed * 2.8 + (isBraking ? 250 : 0) + Math.abs(steerAmount) * 120;
-    this.engineFilter.frequency.setTargetAtTime(cutoff, now, 0.05);
+    // Warm lowpass exhaust resonance opens smoothly with throttle/RPM
+    const cutoff = 155 + gear * 45 + rpmFactor * 260 + Math.abs(steerAmount) * 65 - (isBraking ? 60 : 0);
+    this.engineFilter.frequency.setTargetAtTime(Math.max(120, cutoff), now, 0.06);
 
-    const targetGain = 0.045 + Math.min(0.065, (absSpeed / 380) * 0.065);
-    this.engineGain.gain.setTargetAtTime(targetGain, now, 0.05);
+    const targetGain = 0.042 + Math.min(0.052, (absSpeed / 380) * 0.052);
+    this.engineGain.gain.setTargetAtTime(targetGain, now, 0.06);
   }
 
   private startEngineNodes() {
@@ -162,27 +203,43 @@ class SoundService {
 
     const osc1 = this.audioCtx.createOscillator();
     const osc2 = this.audioCtx.createOscillator();
+    const osc3 = this.audioCtx.createOscillator();
+    const osc2Gain = this.audioCtx.createGain();
+    const osc3Gain = this.audioCtx.createGain();
     const filter = this.audioCtx.createBiquadFilter();
     const gain = this.audioCtx.createGain();
 
     osc1.type = 'sawtooth';
-    osc2.type = 'square';
-    filter.type = 'lowpass';
-    filter.frequency.value = 220;
-    filter.Q.value = 3.5;
+    osc2.type = 'sawtooth';
+    osc3.type = 'triangle';
+    osc1.frequency.value = 44;
+    osc2.frequency.value = 66;
+    osc3.frequency.value = 22;
 
-    gain.gain.value = 0.04;
+    osc2Gain.gain.value = 0.36; // Subtle harmonic growl
+    osc3Gain.gain.value = 0.75; // Deep exhaust sub-thump
+
+    filter.type = 'lowpass';
+    filter.frequency.value = 175;
+    filter.Q.value = 1.4; // Warm, non-nasal resonance
+
+    gain.gain.value = 0.042;
 
     osc1.connect(filter);
-    osc2.connect(filter);
+    osc2.connect(osc2Gain);
+    osc2Gain.connect(filter);
+    osc3.connect(osc3Gain);
+    osc3Gain.connect(filter);
     filter.connect(gain);
     gain.connect(this.audioCtx.destination);
 
     osc1.start();
     osc2.start();
+    osc3.start();
 
     this.engineOsc1 = osc1;
     this.engineOsc2 = osc2;
+    this.engineOsc3 = osc3;
     this.engineFilter = filter;
     this.engineGain = gain;
   }
@@ -191,8 +248,10 @@ class SoundService {
     try {
       this.engineOsc1?.stop();
       this.engineOsc2?.stop();
+      this.engineOsc3?.stop();
       this.engineOsc1?.disconnect();
       this.engineOsc2?.disconnect();
+      this.engineOsc3?.disconnect();
       this.engineFilter?.disconnect();
       this.engineGain?.disconnect();
     } catch {
@@ -200,12 +259,13 @@ class SoundService {
     }
     this.engineOsc1 = null;
     this.engineOsc2 = null;
+    this.engineOsc3 = null;
     this.engineFilter = null;
     this.engineGain = null;
   }
 
   /**
-   * Starts a 16-bit Top Gear 3000 inspired high-energy chiptune racing soundtrack!
+   * Starts a warm, driving Top Gear 3000 / Need for Speed inspired synthwave-rock soundtrack!
    */
   startBackgroundMusic() {
     this.init();
@@ -214,75 +274,90 @@ class SoundService {
     this.isMusicPlaying = true;
     this.startEngineNodes();
 
-    let step = 0; // 16th-note step counter (64 steps = 4 bars)
-    const bpm = 138; // Fast Top Gear arcade tempo
+    let step = 0; // 16th-note step counter (128 steps = 8 bars)
+    const bpm = 126; // Driving highway synthwave / electronic-rock groove
     const stepTime = 60 / bpm / 4; // 16th note duration in seconds
 
-    // 4-bar chord progression in D minor (Dm -> Bb -> C -> A)
-    // Bass root frequencies (Hz) for each bar (16 steps per bar)
-    const bassRoots = [73.42, 58.27, 65.41, 55.0]; // D2, Bb1, C2, A1
+    // 8-bar E minor progression: Em -> Em -> C -> D -> Em -> Em -> G -> Bm
+    const bassRoots = [82.41, 82.41, 65.41, 73.42, 82.41, 82.41, 98.0, 61.74];
 
-    // Top Gear style arpeggio chords (3-note triads per bar, Hz)
-    const arpChords = [
-      [293.66, 349.23, 440.0], // Dm: D4, F4, A4
-      [233.08, 293.66, 349.23], // Bb: Bb3, D4, F4
-      [261.63, 329.63, 392.0], // C:  C4, E4, G4
-      [220.0, 277.18, 329.63], // A:  A3, C#4, E4
+    // Warm power-chord pads (root + fifth)
+    const padChords: [number, number][] = [
+      [164.81, 246.94], // Em
+      [164.81, 246.94], // Em
+      [130.81, 196.0],  // C
+      [146.83, 220.0],  // D
+      [164.81, 246.94], // Em
+      [164.81, 246.94], // Em
+      [196.0, 293.66],  // G
+      [123.47, 185.0],  // Bm
     ];
 
-    // Heroic 64-step lead synth melody (0 = rest/sustain)
+    // Rolling NFS-style 16th-note bass rhythm (1 = root, 2 = octave jump, 0 = rest)
+    const bassPattern = [1, 0, 1, 1, 1, 0, 2, 0, 1, 0, 1, 1, 1, 0, 2, 0];
+
+    // Soaring, spacious Top Gear 3000 / Outrun synth lead melody (0 = rest/sustain)
     const leadMelody: number[] = [
-      // Bar 1 (Dm)
-      587.33, 0, 587.33, 659.25, 698.46, 0, 659.25, 587.33,
-      523.25, 0, 440.0, 0, 587.33, 0, 0, 0,
-      // Bar 2 (Bb)
-      466.16, 0, 466.16, 523.25, 587.33, 0, 698.46, 0,
-      659.25, 0, 587.33, 523.25, 440.0, 0, 0, 0,
+      // Bar 1 (Em)
+      329.63, 0, 0, 0, 493.88, 0, 0, 440.0, 392.0, 0, 0, 0, 369.99, 0, 329.63, 0,
+      // Bar 2 (Em)
+      0, 0, 329.63, 0, 392.0, 0, 440.0, 0, 493.88, 0, 0, 0, 0, 0, 0, 0,
       // Bar 3 (C)
-      523.25, 0, 523.25, 587.33, 659.25, 0, 783.99, 0,
-      698.46, 659.25, 587.33, 0, 659.25, 0, 0, 0,
-      // Bar 4 (A)
-      698.46, 0, 659.25, 0, 587.33, 0, 523.25, 0,
-      554.37, 0, 659.25, 0, 880.0, 0, 739.99, 659.25,
+      523.25, 0, 0, 0, 493.88, 0, 440.0, 0, 392.0, 0, 0, 0, 440.0, 0, 493.88, 0,
+      // Bar 4 (D)
+      587.33, 0, 0, 0, 493.88, 0, 440.0, 0, 369.99, 0, 0, 0, 0, 0, 392.0, 440.0,
+      // Bar 5 (Em - lifted octave peak)
+      659.25, 0, 0, 0, 587.33, 0, 493.88, 0, 659.25, 0, 0, 587.33, 493.88, 0, 440.0, 0,
+      // Bar 6 (Em)
+      392.0, 0, 440.0, 0, 493.88, 0, 0, 0, 659.25, 0, 0, 0, 0, 0, 0, 0,
+      // Bar 7 (G)
+      783.99, 0, 0, 0, 739.99, 0, 659.25, 0, 587.33, 0, 0, 0, 493.88, 0, 587.33, 0,
+      // Bar 8 (Bm -> turnaround)
+      739.99, 0, 0, 0, 587.33, 0, 493.88, 0, 440.0, 0, 392.0, 0, 369.99, 0, 0, 0,
     ];
 
     this.musicInterval = window.setInterval(() => {
       if (!this.audioCtx) return;
       const now = this.audioCtx.currentTime;
-      const bar = Math.floor(step / 16) % 4;
+      const bar = Math.floor(step / 16) % 8;
       const stepInBar = step % 16;
 
-      // 1. Drums: Driving 16-bit breakbeat
-      if (stepInBar % 4 === 0 || stepInBar === 10) {
+      // 1. Punchy electronic-rock breakbeat drums
+      if (stepInBar === 0 || stepInBar === 6 || stepInBar === 10 || ((bar === 3 || bar === 7) && stepInBar === 14)) {
         this.playKick(now);
       }
       if (stepInBar === 4 || stepInBar === 12) {
         this.playSnare(now);
       }
       if (stepInBar % 2 === 0) {
-        this.playHat(now, stepInBar % 4 === 2 ? 0.05 : 0.025);
+        this.playHat(now, stepInBar % 4 === 2 ? 0.028 : 0.015);
       }
 
-      // 2. Galloping 16th-note octave synth bass (classic SNES racing bassline)
-      const root = bassRoots[bar];
-      const isOctave = stepInBar % 2 === 1;
-      const bassFreq = isOctave ? root * 2 : root;
-      if (stepInBar !== 7 && stepInBar !== 15) {
-        this.playBass(now, bassFreq, stepTime * 0.85);
+      // 2. Warm rolling synthwave bassline
+      const bassStep = bassPattern[stepInBar];
+      if (bassStep > 0) {
+        const root = bassRoots[bar];
+        const bassFreq = bassStep === 2 ? root * 2 : root;
+        this.playBass(now, bassFreq, stepTime * 1.1);
       }
 
-      // 3. Rapid 16-bit Chiptune Arpeggio
-      const chord = arpChords[bar];
-      const arpFreq = chord[step % 3];
-      this.playArp(now, arpFreq, stepTime * 0.8);
+      // 3. Wide, soft atmospheric power-chord pad on bar starts & turnaround hits
+      if (stepInBar === 0 || ((bar === 3 || bar === 7) && stepInBar === 10)) {
+        this.playPad(now, padChords[bar], stepTime * 10);
+      }
 
-      // 4. Heroic Top Gear Lead Melody
+      // 4. Warm filtered synth lead melody
       const leadFreq = leadMelody[step];
       if (leadFreq > 0) {
-        this.playLead(now, leadFreq, stepTime * 1.9);
+        // Hold longer when followed by rests for smooth singing sustain
+        let sustainSteps = 1;
+        while (sustainSteps < 4 && leadMelody[(step + sustainSteps) % 128] === 0) {
+          sustainSteps++;
+        }
+        this.playLead(now, leadFreq, stepTime * Math.max(1.4, sustainSteps * 0.92));
       }
 
-      step = (step + 1) % 64;
+      step = (step + 1) % 128;
     }, stepTime * 1000);
   }
 
@@ -321,14 +396,22 @@ class SoundService {
     this.startBackgroundMusic();
   }
 
-  private playNoiseBurst(time: number, duration: number, filterFreq: number, volume: number) {
+  private playNoiseBurst(
+    time: number,
+    duration: number,
+    filterFreq: number,
+    volume: number,
+    filterType: BiquadFilterType = 'bandpass',
+    q: number = 1.0
+  ) {
     if (!this.audioCtx || !this.noiseBuffer) return;
     const source = this.audioCtx.createBufferSource();
     source.buffer = this.noiseBuffer;
 
     const filter = this.audioCtx.createBiquadFilter();
-    filter.type = 'bandpass';
+    filter.type = filterType;
     filter.frequency.setValueAtTime(filterFreq, time);
+    filter.Q.value = q;
 
     const gain = this.audioCtx.createGain();
     gain.gain.setValueAtTime(volume, time);
@@ -342,17 +425,41 @@ class SoundService {
     source.stop(time + duration);
   }
 
+  private playImpactThud(
+    time: number,
+    startFreq: number,
+    endFreq: number,
+    duration: number,
+    volume: number
+  ) {
+    if (!this.audioCtx) return;
+    const osc = this.audioCtx.createOscillator();
+    const gain = this.audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.connect(gain);
+    gain.connect(this.audioCtx.destination);
+
+    osc.frequency.setValueAtTime(startFreq, time);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, time + duration);
+    gain.gain.setValueAtTime(volume, time);
+    gain.gain.exponentialRampToValueAtTime(0.005, time + duration);
+
+    osc.start(time);
+    osc.stop(time + duration);
+  }
+
   private playKick(time: number) {
     if (!this.audioCtx) return;
     const osc = this.audioCtx.createOscillator();
     const gain = this.audioCtx.createGain();
+    osc.type = 'sine';
     osc.connect(gain);
     gain.connect(this.audioCtx.destination);
 
-    osc.frequency.setValueAtTime(155, time);
-    osc.frequency.exponentialRampToValueAtTime(32, time + 0.14);
-    gain.gain.setValueAtTime(0.38, time);
-    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.16);
+    osc.frequency.setValueAtTime(118, time);
+    osc.frequency.exponentialRampToValueAtTime(36, time + 0.14);
+    gain.gain.setValueAtTime(0.26, time);
+    gain.gain.exponentialRampToValueAtTime(0.008, time + 0.16);
 
     osc.start(time);
     osc.stop(time + 0.16);
@@ -360,8 +467,8 @@ class SoundService {
 
   private playSnare(time: number) {
     if (!this.audioCtx) return;
-    // Crisp 16-bit noise snare + punchy body
-    this.playNoiseBurst(time, 0.13, 1800, 0.18);
+    // Tight electronic-rock snare with soft body
+    this.playNoiseBurst(time, 0.12, 1450, 0.11);
 
     const osc = this.audioCtx.createOscillator();
     const gain = this.audioCtx.createGain();
@@ -369,17 +476,17 @@ class SoundService {
     osc.connect(gain);
     gain.connect(this.audioCtx.destination);
 
-    osc.frequency.setValueAtTime(210, time);
-    osc.frequency.exponentialRampToValueAtTime(90, time + 0.09);
-    gain.gain.setValueAtTime(0.18, time);
-    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+    osc.frequency.setValueAtTime(185, time);
+    osc.frequency.exponentialRampToValueAtTime(88, time + 0.08);
+    gain.gain.setValueAtTime(0.13, time);
+    gain.gain.exponentialRampToValueAtTime(0.008, time + 0.09);
 
     osc.start(time);
-    osc.stop(time + 0.1);
+    osc.stop(time + 0.09);
   }
 
   private playHat(time: number, volume: number) {
-    this.playNoiseBurst(time, 0.035, 7500, volume);
+    this.playNoiseBurst(time, 0.03, 6200, volume);
   }
 
   private playBass(time: number, freq: number, duration: number) {
@@ -390,51 +497,71 @@ class SoundService {
 
     osc.type = 'sawtooth';
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(650, time);
-    filter.frequency.exponentialRampToValueAtTime(180, time + duration);
+    filter.frequency.setValueAtTime(520, time);
+    filter.frequency.exponentialRampToValueAtTime(135, time + duration);
 
     osc.connect(filter);
     filter.connect(gain);
     gain.connect(this.audioCtx.destination);
 
     osc.frequency.setValueAtTime(freq, time);
-    gain.gain.setValueAtTime(0.13, time);
-    gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+    gain.gain.setValueAtTime(0.105, time);
+    gain.gain.exponentialRampToValueAtTime(0.008, time + duration);
 
     osc.start(time);
     osc.stop(time + duration);
   }
 
-  private playArp(time: number, freq: number, duration: number) {
+  private playPad(time: number, chord: [number, number], duration: number) {
     if (!this.audioCtx) return;
-    const osc = this.audioCtx.createOscillator();
+    const filter = this.audioCtx.createBiquadFilter();
     const gain = this.audioCtx.createGain();
-    osc.type = 'square';
-    osc.connect(gain);
+
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(680, time);
+    filter.frequency.exponentialRampToValueAtTime(340, time + duration);
+
+    gain.gain.setValueAtTime(0.005, time);
+    gain.gain.exponentialRampToValueAtTime(0.034, time + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.004, time + duration);
+
+    filter.connect(gain);
     gain.connect(this.audioCtx.destination);
 
-    osc.frequency.setValueAtTime(freq, time);
-    gain.gain.setValueAtTime(0.035, time);
-    gain.gain.exponentialRampToValueAtTime(0.005, time + duration);
-
-    osc.start(time);
-    osc.stop(time + duration);
+    chord.forEach((freq, idx) => {
+      if (!this.audioCtx) return;
+      const osc = this.audioCtx.createOscillator();
+      osc.type = idx === 0 ? 'triangle' : 'sawtooth';
+      osc.frequency.setValueAtTime(freq, time);
+      osc.connect(filter);
+      osc.start(time);
+      osc.stop(time + duration);
+    });
   }
 
   private playLead(time: number, freq: number, duration: number) {
     if (!this.audioCtx) return;
     const osc = this.audioCtx.createOscillator();
+    const filter = this.audioCtx.createBiquadFilter();
     const gain = this.audioCtx.createGain();
-    osc.type = 'square';
-    osc.connect(gain);
+
+    // Warm filtered analog sawtooth lead (smooth Top Gear 3000 / synthwave tone)
+    osc.type = 'sawtooth';
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(2200, time);
+    filter.frequency.exponentialRampToValueAtTime(880, time + duration);
+    filter.Q.value = 1.2;
+
+    osc.connect(filter);
+    filter.connect(gain);
     gain.connect(this.audioCtx.destination);
 
-    // Slight vibrato / pitch slide for authentic SNES SPC700 lead feel
-    osc.frequency.setValueAtTime(freq * 0.992, time);
-    osc.frequency.exponentialRampToValueAtTime(freq, time + 0.025);
+    osc.frequency.setValueAtTime(freq * 0.994, time);
+    osc.frequency.exponentialRampToValueAtTime(freq, time + 0.035);
 
-    gain.gain.setValueAtTime(0.085, time);
-    gain.gain.exponentialRampToValueAtTime(0.008, time + duration);
+    gain.gain.setValueAtTime(0.008, time);
+    gain.gain.exponentialRampToValueAtTime(0.062, time + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.006, time + duration);
 
     osc.start(time);
     osc.stop(time + duration);
