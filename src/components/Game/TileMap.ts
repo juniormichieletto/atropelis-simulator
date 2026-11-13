@@ -125,33 +125,24 @@ export class TileMap {
         switch (type) {
           case 'ROAD': {
             // Top Gear 3000 deep twilight highway asphalt
-            ctx.fillStyle = '#1b1b2f';
+            ctx.fillStyle = '#181828';
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
 
-            // Inner road surface track
-            ctx.fillStyle = '#151525';
-            ctx.fillRect(x + 8, y + 8, this.tileSize - 16, this.tileSize - 16);
-
-            // Alternating Neon Cyan / Red-White Arcade Rumble Curbs at road edges
-            const drawRumbleH = (ry: number) => {
-              ctx.fillStyle = '#00e5ff';
-              ctx.fillRect(x, ry, this.tileSize, 4);
-              ctx.fillStyle = '#ff2a85';
-              ctx.fillRect(x + 12, ry, 24, 4);
-              ctx.fillRect(x + 62, ry, 24, 4);
-            };
-            const drawRumbleV = (rx: number) => {
-              ctx.fillStyle = '#00e5ff';
-              ctx.fillRect(rx, y, 4, this.tileSize);
-              ctx.fillStyle = '#ff2a85';
-              ctx.fillRect(rx, y + 12, 4, 24);
-              ctx.fillRect(rx, y + 62, 4, 24);
-            };
-
-            if (r > 0 && this.grid[r - 1][c] !== 'ROAD') drawRumbleH(y);
-            if (r < this.rows - 1 && this.grid[r + 1][c] !== 'ROAD') drawRumbleH(y + this.tileSize - 4);
-            if (c > 0 && this.grid[r][c - 1] !== 'ROAD') drawRumbleV(x);
-            if (c < this.cols - 1 && this.grid[r][c + 1] !== 'ROAD') drawRumbleV(x + this.tileSize - 4);
+            // Solid subtle slate-gray road shoulder / curb along non-road boundaries
+            ctx.fillStyle = '#4a4e69';
+            const curbSize = 5;
+            if (r > 0 && this.grid[r - 1][c] !== 'ROAD') {
+              ctx.fillRect(x, y, this.tileSize, curbSize);
+            }
+            if (r < this.rows - 1 && this.grid[r + 1][c] !== 'ROAD') {
+              ctx.fillRect(x, y + this.tileSize - curbSize, this.tileSize, curbSize);
+            }
+            if (c > 0 && this.grid[r][c - 1] !== 'ROAD') {
+              ctx.fillRect(x, y, curbSize, this.tileSize);
+            }
+            if (c < this.cols - 1 && this.grid[r][c + 1] !== 'ROAD') {
+              ctx.fillRect(x + this.tileSize - curbSize, y, curbSize, this.tileSize);
+            }
 
             // Glowing Amber / Gold dashed center lane lines
             ctx.fillStyle = '#ffbe0b';

@@ -92,7 +92,8 @@ class MockAudioContext {
   currentTime = 0;
   sampleRate = 44100;
   destination = {};
-  resume = vi.fn();
+  resume = vi.fn(() => Promise.resolve());
+  suspend = vi.fn(() => Promise.resolve());
   createOscillator = vi.fn(() => new MockOscillatorNode());
   createGain = vi.fn(() => new MockGainNode());
   createBiquadFilter = vi.fn(() => new MockBiquadFilterNode());

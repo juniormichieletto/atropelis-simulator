@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import App from '../App';
 import { LocalStorageService } from '../services/LocalStorageService';
+import { soundService } from '../services/SoundService';
 
 describe('App & GameCanvas Integration', () => {
   beforeEach(() => {
@@ -73,5 +74,54 @@ describe('App & GameCanvas Integration', () => {
 
     // Returns to MenuView after timer expires
     expect(screen.getByText(/START NEW GAME/i)).toBeInTheDocument();
+  });
+
+  it('pauses the game loop, countdown timer, and music when the tab becomes hidden and resumes on return', () => {
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+    const cafSpy = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    const pauseAudioSpy = vi.spyOn(soundService, 'pauseBackgroundMusic');
+    const resumeAudioSpy = vi.spyOn(soundService, 'resumeBackgroundMusic');
+
+    LocalStorageService.saveName('ACE3000');
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /START NEW GAME/i }));
+    expect(screen.getByText(/TIME: 1:00/i)).toBeInTheDocument();
+
+    try {
+      // Switch away from tab (document.hidden = true)
+      Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      expect(pauseAudioSpy).toHaveBeenCalledTimes(1);
+      expect(cafSpy).toHaveBeenCalled();
+
+      // Timer must not tick down while tab is hidden
+      act(() => {
+        vi.advanceTimersByTime(10000);
+      });
+      expect(screen.getByText(/TIME: 1:00/i)).toBeInTheDocument();
+
+      rafSpy.mockClear();
+
+      // Return to tab (document.hidden = false)
+      Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      expect(resumeAudioSpy).toHaveBeenCalledTimes(1);
+      expect(rafSpy).toHaveBeenCalled();
+
+      // Timer resumes decrementing normally
+      act(() => {
+        vi.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText(/TIME: 0:55/i)).toBeInTheDocument();
+    } finally {
+      delete (document as unknown as { hidden?: boolean }).hidden;
+      vi.restoreAllMocks();
+    }
   });
 });

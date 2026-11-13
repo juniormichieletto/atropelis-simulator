@@ -26,6 +26,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute in seconds
   const [showControls, setShowControls] = useState(true);
+  const [isPaused, setIsPaused] = useState(() => document.hidden);
 
   // Start on a main city road facing East (angle = 0)
   const playerRef = useRef<PlayerCar>(new PlayerCar(450, 850));
@@ -35,6 +36,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const scoreRef = useRef(score);
   const showControlsRef = useRef(showControls);
   const onGameOverRef = useRef(onGameOver);
+  const isPausedRef = useRef(document.hidden);
   const speedTextRef = useRef<HTMLSpanElement>(null);
   const gearTextRef = useRef<HTMLSpanElement>(null);
   const rpmFillRef = useRef<HTMLDivElement>(null);
@@ -66,12 +68,38 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       inputRef.current = new InputManager();
     }
 
+    const pauseGame = () => {
+      if (isPausedRef.current) return;
+      isPausedRef.current = true;
+      setIsPaused(true);
+      isPointerDownRef.current = false;
+      playerRef.current.clearTarget();
+      inputRef.current?.reset();
+      soundService.pauseBackgroundMusic();
+    };
+
+    const resumeGame = () => {
+      if (document.hidden || !isPausedRef.current) return;
+      isPausedRef.current = false;
+      setIsPaused(false);
+      soundService.resumeBackgroundMusic();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        pauseGame();
+      } else {
+        resumeGame();
+      }
+    };
+
     const handleResize = () => {
       setDimensions({ width: window.innerWidth, height: window.innerHeight });
     };
     window.addEventListener('resize', handleResize);
 
     const handleKeyDownDismiss = (e: KeyboardEvent) => {
+      resumeGame();
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
         setShowControls(false);
       }
@@ -83,6 +111,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
 
     const handleMouseDown = (e: MouseEvent) => {
+      resumeGame();
       if (isHudTarget(e.target)) return;
       isPointerDownRef.current = true;
       handleInteraction(e.clientX);
@@ -100,6 +129,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
 
     const handleTouchStart = (e: TouchEvent) => {
+      resumeGame();
       if (isHudTarget(e.target)) return;
       isPointerDownRef.current = true;
       if (e.touches[0]) {
@@ -118,6 +148,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       playerRef.current.clearTarget();
     };
 
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', pauseGame);
+    window.addEventListener('focus', resumeGame);
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
@@ -128,6 +161,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     soundService.startBackgroundMusic();
 
     const timer = setInterval(() => {
+      if (isPausedRef.current) return;
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
@@ -140,6 +174,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     const controlsTimer = setTimeout(() => setShowControls(false), 4000);
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', pauseGame);
+      window.removeEventListener('focus', resumeGame);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDownDismiss);
       window.removeEventListener('mousedown', handleMouseDown);
@@ -257,7 +294,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     const canvas = canvasRef.current;
     const W = canvas ? canvas.width : window.innerWidth;
     const H = canvas ? canvas.height : window.innerHeight;
-    const { cosCam, sinCam, camX, camY, camHeight, baseHorizonY, focalLength } = getCameraParams(
+    const { camAngle, cosCam, sinCam, camX, camY, camHeight, baseHorizonY, focalLength } = getCameraParams(
       H,
       player,
       tileMap
@@ -285,15 +322,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       const entityScreenX = W * 0.5 + (tx / tz) * focalLength;
       const entityScreenY = baseHorizonY + (camHeight / tz) * focalLength;
       const s = Math.min(focalLength / tz, 10.5);
+      const relAngle = entity.angle - (camAngle + Math.atan2(tx, tz) * 0.55);
+      const sideAmt = Math.abs(Math.sin(relAngle));
 
       const entityVisualHalfW =
         entity.type === 'PERSON'
           ? 1.2 * s
           : entity.type === 'BIKE'
-            ? 1.5 * s
+            ? (1.5 + sideAmt * 2.0) * s
             : entity.type === 'MOTORCYCLE'
-              ? 2.1 * s
-              : 5.5 * s;
+              ? (2.1 + sideAmt * 2.3) * s
+              : (5.5 + sideAmt * 2.8) * s;
 
       // Require both vertical road-contact overlap (front bumper to rear wheels) AND horizontal sprite overlap
       if (
@@ -469,7 +508,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     }
   };
 
-  useGameLoop(update, draw);
+  useGameLoop(update, draw, isPaused);
 
   return (
     <div className="game-view-container">

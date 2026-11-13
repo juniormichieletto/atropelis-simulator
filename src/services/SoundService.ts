@@ -2,6 +2,7 @@ class SoundService {
   private audioCtx: AudioContext | null = null;
   private musicInterval: number | null = null;
   private isMusicPlaying = false;
+  private isMusicPaused = false;
   private noiseBuffer: AudioBuffer | null = null;
 
   // Continuous engine sound nodes
@@ -209,6 +210,7 @@ class SoundService {
   startBackgroundMusic() {
     this.init();
     if (!this.audioCtx || this.isMusicPlaying) return;
+    this.isMusicPaused = false;
     this.isMusicPlaying = true;
     this.startEngineNodes();
 
@@ -284,13 +286,39 @@ class SoundService {
     }, stepTime * 1000);
   }
 
-  stopBackgroundMusic() {
+  private stopMusicLoop() {
     if (this.musicInterval) {
       clearInterval(this.musicInterval);
       this.musicInterval = null;
     }
     this.stopEngineNodes();
     this.isMusicPlaying = false;
+  }
+
+  stopBackgroundMusic() {
+    this.stopMusicLoop();
+    this.isMusicPaused = false;
+  }
+
+  /**
+   * Pauses background music, engine oscillators, and suspends the AudioContext
+   * when the browser tab becomes hidden or loses focus.
+   */
+  pauseBackgroundMusic() {
+    if (!this.isMusicPlaying) return;
+    this.isMusicPaused = true;
+    this.stopMusicLoop();
+    this.audioCtx?.suspend?.();
+  }
+
+  /**
+   * Resumes background music and AudioContext when returning to the active tab.
+   */
+  resumeBackgroundMusic() {
+    if (!this.isMusicPaused) return;
+    this.isMusicPaused = false;
+    this.audioCtx?.resume?.();
+    this.startBackgroundMusic();
   }
 
   private playNoiseBurst(time: number, duration: number, filterFreq: number, volume: number) {

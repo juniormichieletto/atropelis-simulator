@@ -23,6 +23,12 @@ export class InputManager {
     this.manualInput = input;
   }
 
+  /** Clears all held keyboard and manual inputs (e.g. when the tab loses focus). */
+  reset() {
+    this.keys = {};
+    this.manualInput = { forward: false, backward: false, left: false, right: false };
+  }
+
   getMovementInput() {
     return {
       forward: this.keys['ArrowUp'] || this.keys['KeyW'] || this.keys['w'] || this.manualInput.forward,

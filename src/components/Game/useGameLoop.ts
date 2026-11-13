@@ -1,13 +1,23 @@
 import { useEffect, useRef } from 'react';
 
-export const useGameLoop = (update: (dt: number) => void, draw: () => void) => {
+export const useGameLoop = (
+  update: (dt: number) => void,
+  draw: () => void,
+  isPaused: boolean = false
+) => {
   const requestRef = useRef<number>(0);
   const previousTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (isPaused) {
+      cancelAnimationFrame(requestRef.current);
+      previousTimeRef.current = null;
+      return;
+    }
+
     const animate = (time: number) => {
       if (previousTimeRef.current !== null) {
-        const dt = (time - previousTimeRef.current) / 1000; // in seconds
+        const dt = Math.min((time - previousTimeRef.current) / 1000, 0.1); // in seconds, clamped to avoid tab-switch spikes
         update(dt);
         draw();
       }
@@ -17,5 +27,5 @@ export const useGameLoop = (update: (dt: number) => void, draw: () => void) => {
 
     requestRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(requestRef.current);
-  }, [update, draw]);
+  }, [update, draw, isPaused]);
 };
