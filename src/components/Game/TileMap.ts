@@ -176,19 +176,18 @@ export class TileMap {
             break;
           }
           case 'GRASS': {
-            // Top Gear 3000 twilight bio-turf (deep emerald-teal with synthwave grid & flora)
-            ctx.fillStyle = '#102536';
+            // Smooth, low-contrast twilight lawn (soft forest tones that don't distract from vehicles)
+            ctx.fillStyle = '#132623';
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
-            ctx.fillStyle = '#153447';
-            ctx.fillRect(x, y, this.tileSize, 4);
-            ctx.fillRect(x, y, 4, this.tileSize);
-            ctx.fillStyle = '#00b894';
-            for (let i = 0; i < 6; i++) {
-              ctx.fillRect(x + ((i * 37 + 12) % (this.tileSize - 12)), y + ((i * 23 + 8) % (this.tileSize - 12)), 10, 10);
-            }
-            ctx.fillStyle = '#00e5ff';
-            for (let i = 0; i < 3; i++) {
-              ctx.fillRect(x + ((i * 53 + 20) % (this.tileSize - 10)), y + ((i * 41 + 16) % (this.tileSize - 10)), 6, 6);
+            // Soft alternating turf band for subtle depth
+            ctx.fillStyle = '#172d29';
+            ctx.fillRect(x, y, this.tileSize, this.tileSize / 2);
+            // Gentle, muted moss accents (very close in value to base turf)
+            ctx.fillStyle = '#1c3631';
+            for (let i = 0; i < 4; i++) {
+              const gx = x + ((i * 37 + 14) % (this.tileSize - 16));
+              const gy = y + ((i * 23 + 10) % (this.tileSize - 12));
+              ctx.fillRect(gx, gy, 12, 4);
             }
             break;
           }
@@ -225,8 +224,8 @@ export class TileMap {
             ctx.fillRect(x, y + s, this.tileSize, 4);
             ctx.fillRect(x, y, 4, this.tileSize);
             ctx.fillRect(x + s, y, 4, this.tileSize);
-            // Subtle cyan node dots at tile intersections
-            ctx.fillStyle = '#00e5ff';
+            // Muted slate intersection accent
+            ctx.fillStyle = '#343152';
             ctx.fillRect(x + s - 2, y + s - 2, 6, 6);
             break;
           }
@@ -530,16 +529,16 @@ export class TileMap {
                   draw: (ctx: CanvasRenderingContext2D) => {
                     ctx.save();
                     ctx.translate(screenX, screenY);
-                    // Trunk with neon rings
-                    ctx.fillStyle = '#2c1638';
+                    // Trunk with calm twilight bark rings
+                    ctx.fillStyle = '#2b1d28';
                     ctx.fillRect(-2 * s, -36 * s, 4 * s, 36 * s);
-                    ctx.fillStyle = '#ff2a85';
+                    ctx.fillStyle = '#3d2938';
                     ctx.fillRect(-2 * s, -28 * s, 4 * s, 2 * s);
                     ctx.fillRect(-2 * s, -18 * s, 4 * s, 2 * s);
-                    // Cyber-Palm Canopy
-                    ctx.fillStyle = '#00e5ff';
+                    // Calm twilight foliage canopy
+                    ctx.fillStyle = '#1b4332';
                     ctx.fillRect(-12 * s, -40 * s, 24 * s, 4 * s);
-                    ctx.fillStyle = '#00b894';
+                    ctx.fillStyle = '#245540';
                     ctx.fillRect(-9 * s, -45 * s, 18 * s, 5 * s);
                     ctx.restore();
                   },
