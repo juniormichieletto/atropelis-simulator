@@ -438,6 +438,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
   }, [multiplayerService]);
 
+  /**
+   * 🔒 REGRA ESTRITA DE DESIGN (CAMERA & PROJECTION FREEZE - NÃO ALTERAR):
+   * Parâmetros de projeção 3D (camHeight = 52, baseCamDist = 82, focalLength,
+   * carContactY e baseHorizonY) estão congelados e aprovados para manter
+   * proporções idênticas em Desktop, Mobile Retrato e Mobile Horizontal.
+   */
   const getCameraParams = (H: number, player: PlayerCar, tileMap: TileMap) => {
     const camAngle = player.angle - player.steerVisual * 0.1;
     const cosCam = Math.cos(camAngle);

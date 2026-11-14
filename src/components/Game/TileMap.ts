@@ -17,7 +17,12 @@ interface ScreenPt {
 }
 
 export class TileMap {
-  tileSize: number = 100;
+  /**
+   * 🔒 REGRA ESTRITA DE DESIGN (MAP SCALE FREEZE - NÃO ALTERAR):
+   * O tamanho base das células do mapa (tileSize = 100px) e suas proporções
+   * de pistas, faixas, calçadas e edifícios estão congeladas e aprovadas pelo usuário.
+   */
+  readonly tileSize: number = 100;
   grid: TileType[][] = [];
   rows: number = 25;
   cols: number = 30;

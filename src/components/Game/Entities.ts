@@ -3,6 +3,13 @@ export type { Drawable3D };
 
 export type EntityType = 'PERSON' | 'BIKE' | 'MOTORCYCLE' | 'CAR';
 
+/**
+ * 🔒 REGRA ESTRITA DE DESIGN (DIMENSION & SCALE FREEZE - NÃO ALTERAR):
+ * O valor ENTITY_SCALE = 2.1 foi rigorosamente calibrado e aprovado pelo usuário
+ * para garantir proporção visual 1:1 entre carros rivais/remotos e o carro do jogador,
+ * além de proporções realistas para pessoas e veículos de 2 rodas em desktop e mobile
+ * (retrato e horizontal).
+ */
 export const ENTITY_SCALE = 2.1;
 
 let nextEntityGlobalId = 1;

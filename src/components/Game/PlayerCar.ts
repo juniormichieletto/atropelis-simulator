@@ -122,6 +122,11 @@ export class PlayerCar {
   }
 
   /**
+   * 🔒 REGRA ESTRITA DE DESIGN (DIMENSION & SCALE FREEZE - NÃO ALTERAR):
+   * As dimensões base do carro (largura 164px, altura 72px) e suas fórmulas
+   * de escala responsiva (Desktop: W/900 clamp 0.85..1.25; Mobile Paisagem: H/500 clamp 0.65..1.0)
+   * estão congeladas e aprovadas pelo usuário.
+   *
    * Returns current on-screen visual footprint of the car in pixels.
    */
   getVisualDimensions(canvasWidth: number, canvasHeight: number): { width: number; height: number; scale: number } {

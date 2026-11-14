@@ -23,4 +23,5 @@ The project is fully implemented and polished. The user can enter their name, na
 4.  **Polish:** Add a "Speedometer" UI or screen-shake on collision.
 
 ## 💡 Instructions for the next Agent
-Load the `.specs/` directory to understand the full requirement traceability. The project follows a strict "Spec-Driven" workflow. No external assets were used; everything is procedurally generated or drawn via Canvas API.
+1. **🔒 STRICT DESIGN & PROPORTION FREEZE**: As per user directive, the physical scale and proportions of the player car, rival cars, pedestrians, motorcycles, bicycles, tile map (`tileSize = 100`), and 3D camera projection formulas (`ENTITY_SCALE = 2.1`, `carScale`, `focalLength`) are strictly frozen. Do NOT alter them in desktop, mobile portrait, or mobile horizontal modes. See `AGENTS.md` and `.agents/rules/dimensions-freeze.md`.
+2. Load the `.specs/` directory to understand the full requirement traceability. The project follows a strict "Spec-Driven" workflow. No external assets were used; everything is procedurally generated or drawn via Canvas API.
