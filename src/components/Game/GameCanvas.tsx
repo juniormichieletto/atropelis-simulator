@@ -9,6 +9,7 @@ import { soundService } from '../../services/SoundService';
 import { MultiplayerService, MULTIPLAYER_CAR_COLORS } from '../../services/MultiplayerService';
 import { RemotePlayerManager } from './RemotePlayerManager';
 import { LocalStorageService } from '../../services/LocalStorageService';
+import { getPlayerSpawnPoint } from './SpawnPoints';
 
 interface GameCanvasProps {
   onGameOver: (score: number) => void;
@@ -48,8 +49,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [mpFinalResults, setMpFinalResults] = useState<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const [liveMpScores, setLiveMpScores] = useState<MpLeaderboardRacer[]>([]);
 
-  // Start on a main city road facing East (angle = 0)
-  const playerRef = useRef<PlayerCar>(new PlayerCar(450, 850));
+  const initialSpawn = multiplayerService
+    ? getPlayerSpawnPoint(multiplayerService.getMySpawnIndex(), multiplayerService.getSpawnSeed())
+    : { x: 450, y: 850, angle: 0 };
+  const playerRef = useRef<PlayerCar>(new PlayerCar(initialSpawn.x, initialSpawn.y, initialSpawn.angle));
   const inputRef = useRef<InputManager | null>(null);
   const tileMapRef = useRef<TileMap>(new TileMap());
   const entityManagerRef = useRef<EntityManager>(new EntityManager());
@@ -68,7 +71,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const nextPopupIdRef = useRef(1);
   const lastNetworkSendRef = useRef(0);
   const lastNpcSendRef = useRef(0);
-  const playerHitCooldownRef = useRef(0);
+  const playerHitCooldownRef = useRef(multiplayerService ? 2.5 : 0);
 
   const refreshMpLeaderboard = () => {
     if (!multiplayerService) return;
@@ -107,6 +110,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   // Configure multiplayer callbacks and custom car palette if in multiplayer mode
   useEffect(() => {
     if (!multiplayerService) return;
+
+    // Apply player's unique randomized spawn point and start grace period
+    const spawn = getPlayerSpawnPoint(
+      multiplayerService.getMySpawnIndex(),
+      multiplayerService.getSpawnSeed()
+    );
+    playerRef.current.x = spawn.x;
+    playerRef.current.y = spawn.y;
+    playerRef.current.angle = spawn.angle;
+    playerHitCooldownRef.current = 2.5;
 
     // Apply player's selected car palette
     const matched = MULTIPLAYER_CAR_COLORS.find(

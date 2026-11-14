@@ -35,10 +35,10 @@ export class PlayerCar {
   // Touch/Pointer steering state (-1 left, 0 straight, +1 right, null inactive)
   pointerSteer: number | null = null;
 
-  constructor(x: number, y: number) {
+  constructor(x: number, y: number, angle: number = 0) {
     this.x = x;
     this.y = y;
-    this.angle = 0;
+    this.angle = angle;
     this.speed = 0;
     this.maxSpeed = 350; // pixels per second
     this.acceleration = 220; // pixels per second squared

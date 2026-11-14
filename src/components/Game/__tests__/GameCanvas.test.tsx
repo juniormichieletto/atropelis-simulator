@@ -26,6 +26,8 @@ describe('GameCanvas Multiplayer Mode', () => {
       sendNpcUpdate: vi.fn(),
       broadcastHit: vi.fn(),
       leave: vi.fn(),
+      getMySpawnIndex: vi.fn(() => 0),
+      getSpawnSeed: vi.fn(() => 12345),
     };
   });
 

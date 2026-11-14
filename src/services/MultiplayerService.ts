@@ -59,6 +59,8 @@ export class MultiplayerService {
   public myColor: string = MULTIPLAYER_CAR_COLORS[0].main;
   public isHost: boolean = false;
   public isConnected: boolean = false;
+  public spawnSeed: number = 0;
+  public peerOrder: string[] = [];
 
   private room: ReturnType<typeof joinRoom> | null = null;
   private peers: Map<string, RoomPeerInfo> = new Map();
@@ -68,7 +70,7 @@ export class MultiplayerService {
   private sendPeerInfoAction: ((data: RoomPeerInfo, recipientPeerId?: string) => void) | null = null;
   private sendPlayerStateAction: ((data: PlayerNetworkData) => void) | null = null;
   private sendNpcStateAction: ((data: NpcNetworkData[]) => void) | null = null;
-  private sendStartGameAction: ((data: { timestamp: number }) => void) | null = null;
+  private sendStartGameAction: ((data: { timestamp: number; spawnSeed?: number; peerOrder?: string[] }) => void) | null = null;
   private sendHitAction: ((data: { hitterId: string; targetId: string }) => void) | null = null;
 
   constructor(name: string) {
@@ -95,7 +97,7 @@ export class MultiplayerService {
         const peerInfoAction = this.room.makeAction<RoomPeerInfo>('peer_info');
         const playerStateAction = this.room.makeAction<PlayerNetworkData>('player_state');
         const npcStateAction = this.room.makeAction<NpcNetworkData[]>('npc_state');
-        const startGameAction = this.room.makeAction<{ timestamp: number }>('start_game');
+        const startGameAction = this.room.makeAction<{ timestamp: number; spawnSeed?: number; peerOrder?: string[] }>('start_game');
         const hitAction = this.room.makeAction<{ hitterId: string; targetId: string }>('hit_event');
 
         this.sendPeerInfoAction = (data, recipientPeerId) => {
@@ -148,7 +150,13 @@ export class MultiplayerService {
         });
 
         // Receive start game signal
-        startGameAction.onMessage(() => {
+        startGameAction.onMessage((msg) => {
+          if (msg.spawnSeed !== undefined) {
+            this.spawnSeed = msg.spawnSeed;
+          }
+          if (msg.peerOrder) {
+            this.peerOrder = msg.peerOrder;
+          }
           this.callbacks.onGameStarted?.();
         });
 
@@ -193,8 +201,29 @@ export class MultiplayerService {
 
   startGame() {
     if (!this.isHost || !this.sendStartGameAction) return;
-    this.sendStartGameAction({ timestamp: Date.now() });
+    const allPeers = this.getConnectedPeers().map((p) => p.id).sort();
+    const spawnSeed = Math.floor(Math.random() * 1000000) + 1;
+    this.spawnSeed = spawnSeed;
+    this.peerOrder = allPeers;
+    this.sendStartGameAction({ timestamp: Date.now(), spawnSeed, peerOrder: allPeers });
     this.callbacks.onGameStarted?.();
+  }
+
+  getMySpawnIndex(): number {
+    const list = this.peerOrder.length > 0
+      ? this.peerOrder
+      : this.getConnectedPeers().map((p) => p.id).sort();
+    const idx = list.indexOf(this.myId);
+    return idx >= 0 ? idx : 0;
+  }
+
+  getSpawnSeed(): number {
+    if (this.spawnSeed > 0) return this.spawnSeed;
+    let h = 0;
+    for (let i = 0; i < this.roomId.length; i++) {
+      h = (Math.imul(31, h) + this.roomId.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h) || 42;
   }
 
   sendPlayerUpdate(data: Omit<PlayerNetworkData, 'id' | 'name' | 'color' | 'timestamp'>) {
@@ -246,6 +275,8 @@ export class MultiplayerService {
       this.room = null;
     }
     this.peers.clear();
+    this.peerOrder = [];
+    this.spawnSeed = 0;
     this.isConnected = false;
     this.roomId = '';
   }

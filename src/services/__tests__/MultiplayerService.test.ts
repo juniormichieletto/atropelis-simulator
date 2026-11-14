@@ -69,10 +69,35 @@ describe('MultiplayerService', () => {
     const service = new MultiplayerService('Racer2');
     service.roomId = 'ROOM99';
     service.isConnected = true;
+    service.spawnSeed = 42;
+    service.peerOrder = ['p_1', 'p_2'];
 
     service.leave();
     expect(service.roomId).toBe('');
     expect(service.isConnected).toBe(false);
+    expect(service.spawnSeed).toBe(0);
+    expect(service.peerOrder).toEqual([]);
     expect(service.getConnectedPeers().length).toBe(1);
+  });
+
+  it('manages spawn seeds and player spawn indices correctly', async () => {
+    const service = new MultiplayerService('SlotTester');
+    await service.join('ALPHA99', true);
+
+    // Initial fallback seed generated from roomId
+    const fallbackSeed = service.getSpawnSeed();
+    expect(fallbackSeed).toBeGreaterThan(0);
+
+    // Initial index when solo
+    expect(service.getMySpawnIndex()).toBe(0);
+
+    // Host starts game: sets seed and peer order
+    service.startGame();
+    expect(service.spawnSeed).toBeGreaterThan(0);
+    expect(service.peerOrder).toContain(service.myId);
+
+    // Peer order index when peer is present
+    service.peerOrder = ['other_peer', service.myId];
+    expect(service.getMySpawnIndex()).toBe(1);
   });
 });
