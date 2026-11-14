@@ -47,6 +47,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [isPaused, setIsPaused] = useState(() => (multiplayerService ? false : document.hidden));
   const [peerCount, setPeerCount] = useState(() => (multiplayerService ? multiplayerService.getConnectedPeers().length : 1));
   const [mpFinalResults, setMpFinalResults] = useState<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
+  const mpFinalResultsRef = useRef<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const [liveMpScores, setLiveMpScores] = useState<MpLeaderboardRacer[]>([]);
 
   const initialSpawn = multiplayerService
@@ -161,7 +162,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       },
       onPlayerHit: (hitterId) => {
-        if (hitterId !== multiplayerService.myId) {
+        if (hitterId !== multiplayerService.myId && !mpFinalResultsRef.current) {
           soundService.playHitSound('CAR');
           shakeTimerRef.current = 0.2;
         }
@@ -196,7 +197,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         const myRank = sorted.findIndex((p) => p.isLocal) + 1;
 
         LocalStorageService.saveMultiplayerScore(scoreRef.current, myRank, sorted.length);
-        setMpFinalResults({ rank: myRank, racers: sorted });
+        const finalResults = { rank: myRank, racers: sorted };
+        mpFinalResultsRef.current = finalResults;
+        setMpFinalResults(finalResults);
+
+        // 1. Freeze player car, clear target, reset inputs
+        playerRef.current.speed = 0;
+        playerRef.current.clearTarget();
+        inputRef.current?.reset();
+
+        // 2. Pause game loop
+        isPausedRef.current = true;
+        setIsPaused(true);
+
+        // 3. Stop background music & engine audio nodes
+        soundService.stopBackgroundMusic();
       } else {
         onGameOverRef.current(scoreRef.current);
       }
@@ -227,6 +242,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const resumeGame = () => {
+      if (mpFinalResultsRef.current) return;
       if (multiplayerService) return;
       if (document.hidden || !isPausedRef.current) return;
       isPausedRef.current = false;
@@ -250,6 +266,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     window.addEventListener('resize', handleResize);
 
     const handleKeyDownDismiss = (e: KeyboardEvent) => {
+      if (mpFinalResultsRef.current) return;
       resumeGame();
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
         setShowControls(false);
@@ -262,6 +279,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const handleMouseDown = (e: MouseEvent) => {
+      if (mpFinalResultsRef.current) return;
       resumeGame();
       if (isHudTarget(e.target)) return;
       isPointerDownRef.current = true;
@@ -269,6 +287,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (mpFinalResultsRef.current) return;
       if (isPointerDownRef.current) {
         handleInteraction(e.clientX);
       }
@@ -280,6 +299,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const handleTouchStart = (e: TouchEvent) => {
+      if (mpFinalResultsRef.current) return;
       resumeGame();
       if (isHudTarget(e.target)) return;
       isPointerDownRef.current = true;
@@ -289,6 +309,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (mpFinalResultsRef.current) return;
       if (isPointerDownRef.current && e.touches[0]) {
         handleInteraction(e.touches[0].clientX);
       }
@@ -383,6 +404,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const update = (dt: number) => {
+    if (isPausedRef.current || mpFinalResultsRef.current) return;
     const player = playerRef.current;
     if (!inputRef.current) return;
     const input = inputRef.current.getMovementInput();

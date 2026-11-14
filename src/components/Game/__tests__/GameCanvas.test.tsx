@@ -3,7 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { GameCanvas } from '../GameCanvas';
 import { soundService } from '../../../services/SoundService';
 import { LocalStorageService } from '../../../services/LocalStorageService';
-import type { MultiplayerService } from '../../../services/MultiplayerService';
+import type { MultiplayerService, MultiplayerEventCallback } from '../../../services/MultiplayerService';
 
 describe('GameCanvas Multiplayer Mode', () => {
   let mockMpService: Partial<MultiplayerService>;
@@ -109,5 +109,43 @@ describe('GameCanvas Multiplayer Mode', () => {
     fireEvent.click(screen.getByText('VOLTAR AO MENU'));
     expect(mockMpService.leave).toHaveBeenCalledTimes(1);
     expect(onBackToMenuMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops background music, freezes game loop, and ignores input/hits when match time expires', () => {
+    const stopMusicSpy = vi.spyOn(soundService, 'stopBackgroundMusic');
+    const resumeMusicSpy = vi.spyOn(soundService, 'resumeBackgroundMusic');
+    const playHitSpy = vi.spyOn(soundService, 'playHitSound');
+
+    let registeredCallbacks: MultiplayerEventCallback | null = null;
+    mockMpService.setCallbacks = vi.fn((cbs) => {
+      registeredCallbacks = cbs;
+    });
+
+    render(
+      <GameCanvas
+        multiplayerService={mockMpService as MultiplayerService}
+        onGameOver={vi.fn()}
+      />
+    );
+
+    // End match
+    act(() => {
+      vi.advanceTimersByTime(61000);
+    });
+
+    // 1. Music must be completely stopped
+    expect(stopMusicSpy).toHaveBeenCalled();
+
+    // 2. Clicking, typing, or touching during results screen must NOT resume music or game loop
+    fireEvent.click(window);
+    fireEvent.keyDown(window, { key: 'w', code: 'KeyW' });
+    fireEvent.touchStart(window, { touches: [{ clientX: 200, clientY: 200 }] });
+    expect(resumeMusicSpy).not.toHaveBeenCalled();
+
+    // 3. Incoming remote player hit events after race ended must NOT play crash sound
+    if (registeredCallbacks?.onPlayerHit) {
+      registeredCallbacks.onPlayerHit('remote-peer-id');
+    }
+    expect(playHitSpy).not.toHaveBeenCalled();
   });
 });
