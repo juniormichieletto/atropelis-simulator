@@ -18,6 +18,7 @@ export interface RemotePlayer {
   score: number;
   lastUpdate: number;
   entity: Entity;
+  isDisconnected: boolean;
 }
 
 export class RemotePlayerManager {
@@ -25,6 +26,20 @@ export class RemotePlayerManager {
 
   updateFromNetwork(data: PlayerNetworkData) {
     let p = this.players.get(data.id);
+
+    // If not found by id, check if a player with this name previously disconnected (reconnection)
+    if (!p) {
+      for (const existing of this.players.values()) {
+        if (existing.isDisconnected && existing.name.toLowerCase() === data.name.toLowerCase()) {
+          this.players.delete(existing.id);
+          existing.id = data.id;
+          p = existing;
+          this.players.set(data.id, p);
+          break;
+        }
+      }
+    }
+
     if (!p) {
       // Find matching palette or create custom
       const matched = MULTIPLAYER_CAR_COLORS.find(c => c.main.toLowerCase() === data.color.toLowerCase()) || {
@@ -59,17 +74,30 @@ export class RemotePlayerManager {
         score: data.score,
         lastUpdate: Date.now(),
         entity,
+        isDisconnected: false,
       };
       this.players.set(data.id, p);
     } else {
+      // Player is active / reconnected!
+      p.isDisconnected = false;
       p.targetX = data.x;
       p.targetY = data.y;
       p.targetAngle = data.angle;
       p.speed = data.speed;
       p.steerVisual = data.steerVisual;
-      p.score = data.score;
+      p.score = Math.max(p.score, data.score);
       p.lastUpdate = Date.now();
       p.name = data.name || p.name;
+    }
+  }
+
+  markDisconnected(id: string) {
+    const p = this.players.get(id);
+    if (p) {
+      p.isDisconnected = true;
+      p.speed = 0;
+      p.targetX = p.x;
+      p.targetY = p.y;
     }
   }
 
@@ -79,10 +107,16 @@ export class RemotePlayerManager {
 
   update(dt: number) {
     const now = Date.now();
-    for (const [id, p] of this.players.entries()) {
-      // Remove inactive peers after 8 seconds
-      if (now - p.lastUpdate > 8000) {
-        this.players.delete(id);
+    for (const p of this.players.values()) {
+      // If inactive for > 5 seconds, freeze car and mark disconnected (keep score frozen permanently!)
+      if (now - p.lastUpdate > 5000) {
+        p.isDisconnected = true;
+        p.speed = 0;
+      }
+
+      if (p.isDisconnected) {
+        p.speed = 0;
+        p.entity.speed = 0;
         continue;
       }
 
@@ -147,16 +181,16 @@ export class RemotePlayerManager {
           ctx.textAlign = 'center';
 
           // Background tag pill
-          const tagText = p.name;
+          const tagText = p.isDisconnected ? `${p.name} [OFF]` : p.name;
           const textW = ctx.measureText ? ctx.measureText(tagText).width : tagText.length * 8;
-          ctx.fillStyle = 'rgba(9, 5, 29, 0.75)';
+          ctx.fillStyle = p.isDisconnected ? 'rgba(30, 30, 40, 0.85)' : 'rgba(9, 5, 29, 0.75)';
           ctx.fillRect(screenX - textW * 0.5 - 6, tagY - fontSize - 3, textW + 12, fontSize + 6);
-          ctx.strokeStyle = p.color;
+          ctx.strokeStyle = p.isDisconnected ? '#777777' : p.color;
           ctx.lineWidth = 1.5;
           ctx.strokeRect(screenX - textW * 0.5 - 6, tagY - fontSize - 3, textW + 12, fontSize + 6);
 
           // Name text with glow
-          ctx.fillStyle = '#ffffff';
+          ctx.fillStyle = p.isDisconnected ? '#999999' : '#ffffff';
           ctx.fillText(tagText, screenX, tagY);
           ctx.restore();
         },
@@ -172,6 +206,7 @@ export class RemotePlayerManager {
     collisionRadius: number = 24
   ): RemotePlayer | null {
     for (const p of this.players.values()) {
+      if (p.isDisconnected) continue;
       const dist = Math.hypot(p.x - px, p.y - py);
       if (dist < collisionRadius) {
         return p;
@@ -191,11 +226,11 @@ export class RemotePlayerManager {
       const mx = mapX + p.x * scaleX;
       const my = mapY + p.y * scaleY;
 
-      ctx.fillStyle = p.color;
+      ctx.fillStyle = p.isDisconnected ? '#666666' : p.color;
       ctx.beginPath();
       ctx.arc(mx, my, 4, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = p.isDisconnected ? '#444444' : '#ffffff';
       ctx.lineWidth = 1;
       ctx.stroke();
     }

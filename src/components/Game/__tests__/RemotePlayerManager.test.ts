@@ -123,4 +123,112 @@ describe('RemotePlayerManager', () => {
     const ctx = canvas.getContext('2d')!;
     expect(() => manager.drawMinimap(ctx, 1000, 20, 0.05, 0.05)).not.toThrow();
   });
+
+  it('freezes score, marks as disconnected, and ignores collisions on markDisconnected', () => {
+    const manager = new RemotePlayerManager();
+    manager.updateFromNetwork({
+      id: 'p_dc',
+      name: 'Dropper',
+      color: '#e74c3c',
+      x: 300,
+      y: 400,
+      angle: 0,
+      speed: 100,
+      steerVisual: 0,
+      isBraking: false,
+      score: 42,
+      timestamp: Date.now(),
+    });
+
+    // Mark as disconnected
+    manager.markDisconnected('p_dc');
+
+    const player = manager.players.get('p_dc');
+    expect(player).toBeDefined();
+    expect(player?.isDisconnected).toBe(true);
+    // Score must be frozen at 42!
+    expect(player?.score).toBe(42);
+    // Speed should be halted
+    expect(player?.speed).toBe(0);
+
+    // Collisions should be ignored while disconnected
+    const hit = manager.checkCollisionWithPlayer(305, 405, 24);
+    expect(hit).toBeNull();
+
+    // Drawing minimap and 3D pill with disconnected state
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    expect(() => manager.drawMinimap(ctx, 0, 0, 0.1, 0.1)).not.toThrow();
+  });
+
+  it('restores disconnected player when they reconnect, preserving previous frozen score', () => {
+    const manager = new RemotePlayerManager();
+    manager.updateFromNetwork({
+      id: 'p_old_id',
+      name: 'ReturningPilot',
+      color: '#00e5ff',
+      x: 100,
+      y: 100,
+      angle: 0,
+      speed: 80,
+      steerVisual: 0,
+      isBraking: false,
+      score: 65,
+      timestamp: Date.now(),
+    });
+
+    manager.markDisconnected('p_old_id');
+    expect(manager.players.get('p_old_id')?.isDisconnected).toBe(true);
+
+    // Reconnection under new peer ID with same name
+    manager.updateFromNetwork({
+      id: 'p_new_id',
+      name: 'ReturningPilot',
+      color: '#00e5ff',
+      x: 200,
+      y: 200,
+      angle: 0,
+      speed: 90,
+      steerVisual: 0,
+      isBraking: false,
+      score: 70, // Reconnected and increased score
+      timestamp: Date.now(),
+    });
+
+    // Old id should be re-associated to new id
+    expect(manager.players.has('p_old_id')).toBe(false);
+    const restored = manager.players.get('p_new_id');
+    expect(restored).toBeDefined();
+    expect(restored?.isDisconnected).toBe(false);
+    expect(restored?.score).toBe(70);
+  });
+
+  it('marks player as disconnected on timeout (> 5000ms) without deleting their score', () => {
+    const manager = new RemotePlayerManager();
+    manager.updateFromNetwork({
+      id: 'p_timeout',
+      name: 'Laggy',
+      color: '#ffbe0b',
+      x: 100,
+      y: 100,
+      angle: 0,
+      speed: 50,
+      steerVisual: 0,
+      isBraking: false,
+      score: 88,
+      timestamp: Date.now(),
+    });
+
+    // Force lastUpdate to 6 seconds in the past
+    const player = manager.players.get('p_timeout')!;
+    player.lastUpdate = Date.now() - 6000;
+
+    manager.update(0.1);
+
+    // Player should STILL exist with score 88, marked disconnected
+    expect(manager.players.has('p_timeout')).toBe(true);
+    expect(player.isDisconnected).toBe(true);
+    expect(player.score).toBe(88);
+    expect(player.speed).toBe(0);
+  });
 });

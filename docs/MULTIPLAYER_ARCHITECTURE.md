@@ -254,6 +254,13 @@ classDiagram
 * **ScoreboardView**: Interface com abas `[ MODO SOLO ]` e `[ MULTIPLAYER 🌐 ]`, impedindo mistura de pontuações de dinâmicas diferentes.
 * **Desobstrução do Radar Minimap**: O placar ao vivo da sala fica posicionado no canto superior esquerdo (abaixo do banner da sala), mantendo o minimapa de radar e o cone de visão 3D no canto superior direito 100% visíveis.
 
+### 4.4. Tolerância a Desconexões: Pontuação Congelada e Reconexão
+* **Problema**: Se um adversário caísse ou recarregasse a página durante a partida, o seu registro de jogador e pontuação era deletado da memória após timeout de inatividade. Isso distorcia a contagem de pontos e colocação dos demais pilotos na reta final da corrida.
+* **Solução Implementada**:
+  1. **Score Freeze**: Ao detectar perda de sinal (`onPeerLeave` ou inatividade > 5s), o piloto é marcado como desconectado (`isDisconnected = true`), seu carro é freado no local (`speed = 0`, colisões físicas desativadas) e sua pontuação é **congelada** no último valor conhecido. O jogador não é deletado do registro da partida.
+  2. **Placar & Resultados Finais**: O piloto permanece no placar ao vivo (com indicador `[OFF]`) e na tabela de classificação final (`mpFinalResults`), preservando seus pontos para o cálculo exato do ranking de todos os competidores.
+  3. **Reconexão Transparente**: Se o jogador retornar à sala antes do fim da partida, `RemotePlayerManager` re-associa os dados, preserva/avança os pontos a partir do valor congelado e descongela o veículo na pista.
+
 ---
 
 ## 5. Trade-offs da Arquitetura Escolhida

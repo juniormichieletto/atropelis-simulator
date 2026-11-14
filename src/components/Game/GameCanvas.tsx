@@ -32,6 +32,7 @@ export interface MpLeaderboardRacer {
   score: number;
   color: string;
   isLocal: boolean;
+  isDisconnected?: boolean;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -82,6 +83,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       score: scoreRef.current,
       color: multiplayerService.myColor,
       isLocal: true,
+      isDisconnected: false,
     };
     const remotes: MpLeaderboardRacer[] = Array.from(
       remotePlayerManagerRef.current.players.values()
@@ -91,6 +93,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       score: p.score,
       color: p.color,
       isLocal: false,
+      isDisconnected: p.isDisconnected,
     }));
     const sorted = [localRacer, ...remotes].sort((a, b) => b.score - a.score);
     setLiveMpScores(sorted);
@@ -135,6 +138,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     multiplayerService.setCallbacks({
       onPeersUpdated: (peers) => {
         setPeerCount(peers.length);
+        refreshMpLeaderboard();
+      },
+      onPeerLeave: (peerId) => {
+        remotePlayerManagerRef.current.markDisconnected(peerId);
         refreshMpLeaderboard();
       },
       onRemotePlayerUpdate: (data) => {
@@ -183,6 +190,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           score: scoreRef.current,
           color: multiplayerService.myColor,
           isLocal: true,
+          isDisconnected: false,
         };
         const remotes: MpLeaderboardRacer[] = Array.from(
           remotePlayerManagerRef.current.players.values()
@@ -192,6 +200,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           score: p.score,
           color: p.color,
           isLocal: false,
+          isDisconnected: p.isDisconnected,
         }));
         const sorted = [localRacer, ...remotes].sort((a, b) => b.score - a.score);
         const myRank = sorted.findIndex((p) => p.isLocal) + 1;
@@ -821,12 +830,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               {liveMpScores.map((racer, idx) => (
                 <div
                   key={racer.id}
-                  className={`mp-leaderboard-row ${racer.isLocal ? 'is-local' : ''}`}
+                  className={`mp-leaderboard-row ${racer.isLocal ? 'is-local' : ''} ${racer.isDisconnected ? 'is-disconnected' : ''}`}
                 >
                   <span className="mp-lb-rank">#{idx + 1}</span>
-                  <span className="mp-lb-color" style={{ backgroundColor: racer.color }} />
+                  <span
+                    className="mp-lb-color"
+                    style={{ backgroundColor: racer.isDisconnected ? '#666666' : racer.color }}
+                  />
                   <span className="mp-lb-name">
-                    {racer.name}{racer.isLocal ? ' (VOCÊ)' : ''}
+                    {racer.name}
+                    {racer.isLocal ? ' (VOCÊ)' : racer.isDisconnected ? ' [OFF]' : ''}
                   </span>
                   <span className="mp-lb-score">{racer.score}</span>
                 </div>
@@ -855,11 +868,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
               </thead>
               <tbody>
                 {mpFinalResults.racers.map((r, i) => (
-                  <tr key={r.id} className={r.isLocal ? 'highlight-local' : ''}>
+                  <tr
+                    key={r.id}
+                    className={`${r.isLocal ? 'highlight-local' : ''} ${r.isDisconnected ? 'is-disconnected' : ''}`}
+                  >
                     <td className="mp-rank-col">#{i + 1}</td>
                     <td className="mp-name-col">
-                      <span className="mp-lb-color" style={{ backgroundColor: r.color }} />
-                      <span>{r.name} {r.isLocal ? '(VOCÊ)' : ''}</span>
+                      <span
+                        className="mp-lb-color"
+                        style={{ backgroundColor: r.isDisconnected ? '#666666' : r.color }}
+                      />
+                      <span>
+                        {r.name} {r.isLocal ? '(VOCÊ)' : r.isDisconnected ? '(DESCONECTADO)' : ''}
+                      </span>
                     </td>
                     <td className="mp-score-col">{r.score} PTS</td>
                   </tr>

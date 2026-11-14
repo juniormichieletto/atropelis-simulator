@@ -271,6 +271,11 @@
   font-weight: bold;
 }
 
+.mp-leaderboard-row.is-disconnected {
+  opacity: 0.65;
+  color: #8b8fa3;
+}
+
 .mp-lb-rank {
   color: #ffbe0b;
   min-width: 18px;
@@ -422,6 +427,11 @@
 .highlight-local {
   background: rgba(0, 229, 255, 0.12);
   color: #00e5ff;
+}
+
+tr.is-disconnected {
+  opacity: 0.65;
+  color: #8b8fa3;
 }
 
 .mp-leave-btn {

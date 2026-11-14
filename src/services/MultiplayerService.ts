@@ -40,6 +40,7 @@ export type MultiplayerEventCallback = {
   onRemotePlayerUpdate?: (data: PlayerNetworkData) => void;
   onNpcUpdate?: (npcs: NpcNetworkData[]) => void;
   onPlayerHit?: (hitterId: string, targetId: string) => void;
+  onPeerLeave?: (peerId: string) => void;
 };
 
 // Available car palettes for multiplayer
@@ -129,6 +130,7 @@ export class MultiplayerService {
         this.room.onPeerLeave(({ peerId }) => {
           this.peers.delete(peerId);
           this.notifyPeersUpdated();
+          this.callbacks.onPeerLeave?.(peerId);
         });
 
         // Receive remote peer info

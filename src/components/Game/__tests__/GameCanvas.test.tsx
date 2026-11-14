@@ -148,4 +148,64 @@ describe('GameCanvas Multiplayer Mode', () => {
     }
     expect(playHitSpy).not.toHaveBeenCalled();
   });
+
+  it('keeps disconnected player score frozen until game end and preserves their standing', () => {
+    let registeredCallbacks: MultiplayerEventCallback | null = null;
+    mockMpService.setCallbacks = vi.fn((cbs) => {
+      registeredCallbacks = cbs;
+    });
+
+    render(
+      <GameCanvas
+        multiplayerService={mockMpService as MultiplayerService}
+        onGameOver={vi.fn()}
+      />
+    );
+
+    // 1. Remote player joins and scores 75 points
+    act(() => {
+      registeredCallbacks?.onRemotePlayerUpdate?.({
+        id: 'peer_rival',
+        name: 'RivalChampion',
+        color: '#00e5ff',
+        x: 500,
+        y: 600,
+        angle: 0,
+        speed: 150,
+        steerVisual: 0,
+        isBraking: false,
+        score: 75,
+        timestamp: Date.now(),
+      });
+    });
+
+    expect(screen.getByText(/RivalChampion/i)).toBeInTheDocument();
+    expect(screen.getByText('75')).toBeInTheDocument();
+
+    // 2. Remote player disconnects
+    act(() => {
+      registeredCallbacks?.onPeerLeave?.('peer_rival');
+    });
+
+    // Score remains frozen at 75 on live leaderboard with [OFF] status
+    expect(screen.getByText('75')).toBeInTheDocument();
+    expect(screen.getByText(/RivalChampion \[OFF\]/i)).toBeInTheDocument();
+
+    // 3. Race ends
+    act(() => {
+      vi.advanceTimersByTime(61000);
+    });
+
+    // 4. Disconnected player must be present in the final standings with 75 points
+    expect(screen.getByText(/FIM DA CORRIDA!/i)).toBeInTheDocument();
+    expect(screen.getByText(/RivalChampion \(DESCONECTADO\)/i)).toBeInTheDocument();
+    expect(screen.getByText('75 PTS')).toBeInTheDocument();
+
+    // Local player had 0 points, so local player rank is #2 out of 2 racers
+    expect(screen.getByText(/2º LUGAR/i)).toBeInTheDocument();
+
+    const mpScores = LocalStorageService.getMultiplayerScores();
+    expect(mpScores[0].rank).toBe(2);
+    expect(mpScores[0].playersCount).toBe(2);
+  });
 });
