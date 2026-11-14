@@ -27,7 +27,6 @@ export class TileMap {
   private texWidth: number = 0;
   private texHeight: number = 0;
   private groundPixels: Uint32Array = new Uint32Array(0);
-  private outOfBoundsColor: number = 0xff28110a; // ABGR for #0a1128 deep synthwave ocean
 
   // Offscreen low-res Mode 7 floor buffer (scaled up with pixelated rendering)
   private mode7Canvas: HTMLCanvasElement;
@@ -166,13 +165,13 @@ export class TileMap {
             break;
           }
           case 'BUILDING': {
-            // Neon-trimmed plaza apron around building base
-            ctx.fillStyle = '#2a2845';
+            // Dark architectural foundation apron around building base
+            ctx.fillStyle = '#1a1824';
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
-            ctx.fillStyle = '#ff2a85';
-            ctx.fillRect(x + 4, y + 4, this.tileSize - 8, this.tileSize - 8);
-            ctx.fillStyle = '#121024';
-            ctx.fillRect(x + 6, y + 6, this.tileSize - 12, this.tileSize - 12);
+            ctx.fillStyle = '#262335';
+            ctx.fillRect(x + 3, y + 3, this.tileSize - 6, this.tileSize - 6);
+            ctx.fillStyle = '#12111c';
+            ctx.fillRect(x + 5, y + 5, this.tileSize - 10, this.tileSize - 10);
             break;
           }
           case 'GRASS': {
@@ -305,29 +304,85 @@ export class TileMap {
       }
     }
 
-    // Parallax Distant Mountains & Cyber City Skyline Silhouette along the horizon
-    ctx.fillStyle = '#140828';
-    const numPeaks = 36;
-    const angleStep = twoPi / numPeaks;
-    for (let i = 0; i < numPeaks; i++) {
+    // 2. PARALLAX DISTANT METROPOLIS SKYLINE ALONG THE HORIZON
+    // Subtle, deep midnight silhouettes with gentle, soft warm window lights
+    const numBuildings = 64;
+    const angleStep = twoPi / numBuildings;
+
+    // Layer 1: Distant dark megaliths & spires
+    ctx.fillStyle = '#080614';
+    for (let i = 0; i < numBuildings; i++) {
       const a0 = i * angleStep;
       let da = a0 - normAngle;
       while (da < -Math.PI) da += twoPi;
       while (da > Math.PI) da -= twoPi;
 
-      const x0 = canvasWidth / 2 + da * focalLength;
-      const w = (angleStep * focalLength) + 3;
-      if (x0 + w < 0 || x0 > canvasWidth) continue;
+      const x0 = canvasWidth * 0.5 + da * focalLength;
+      const bWidth = (angleStep * focalLength) * 1.35;
+      if (x0 + bWidth < 0 || x0 > canvasWidth) continue;
 
-      const silHeight = 14 + ((i * 29 + 7) % 36);
-      ctx.fillRect(x0, horizonY - silHeight, w, silHeight);
+      const seed = (i * 37 + 13) % 100;
+      const bHeight = 110 + (seed * 1.4); // 110px to 250px tall
+      ctx.fillRect(x0, horizonY - bHeight, bWidth, bHeight);
 
-      // Neon cyan/magenta skyline windows
-      if (i % 2 === 0 && silHeight > 22) {
-        ctx.fillStyle = i % 4 === 0 ? 'rgba(0, 229, 255, 0.5)' : 'rgba(255, 42, 133, 0.5)';
-        ctx.fillRect(x0 + 4, horizonY - silHeight + 6, Math.max(2, w * 0.3), 3);
-        ctx.fillRect(x0 + 4, horizonY - silHeight + 13, Math.max(2, w * 0.3), 3);
-        ctx.fillStyle = '#140828';
+      // Rooftop antenna spire
+      if (seed % 3 === 0) {
+        const antennaH = 22 + (seed % 18);
+        ctx.fillRect(x0 + bWidth * 0.5 - 1, horizonY - bHeight - antennaH, 2, antennaH);
+        // Soft, subtle warning beacon
+        ctx.fillStyle = seed % 5 === 0 ? 'rgba(235, 90, 90, 0.50)' : 'rgba(240, 220, 150, 0.40)';
+        ctx.fillRect(x0 + bWidth * 0.5 - 1.5, horizonY - bHeight - antennaH - 2, 3, 3);
+        ctx.fillStyle = '#080614';
+      }
+    }
+
+    // Layer 2: Foreground dark skyscrapers with subtle, soft scattered lights
+    for (let i = 0; i < numBuildings; i++) {
+      const a0 = (i + 0.45) * angleStep;
+      let da = a0 - normAngle;
+      while (da < -Math.PI) da += twoPi;
+      while (da > Math.PI) da -= twoPi;
+
+      const x0 = canvasWidth * 0.5 + da * focalLength;
+      const bWidth = (angleStep * focalLength) * 0.95;
+      if (x0 + bWidth < 0 || x0 > canvasWidth) continue;
+
+      const seed = (i * 53 + 29) % 100;
+      const bHeight = 60 + (seed * 1.05); // 60px to 165px tall
+
+      // Deep dark skyscraper body
+      ctx.fillStyle = i % 2 === 0 ? '#110c22' : '#0d091b';
+      ctx.fillRect(x0, horizonY - bHeight, bWidth, bHeight);
+
+      // Subtle architectural roof trim (soft, muted slate - non-distracting)
+      if (seed % 4 === 0) {
+        ctx.fillStyle = 'rgba(80, 75, 105, 0.35)';
+        ctx.fillRect(x0 + 1, horizonY - bHeight, bWidth - 2, 2);
+      }
+
+      // Grids of soft, subtle lit windows (warm amber, warm white, muted cool)
+      const floors = Math.floor(bHeight / 8);
+      const cols = Math.max(2, Math.floor(bWidth / 6));
+      const winW = Math.max(1.5, (bWidth / cols) - 2.5);
+      const winH = 2.5;
+
+      for (let f = 1; f < floors; f++) {
+        const wy = horizonY - f * 8;
+        for (let c = 0; c < cols; c++) {
+          const winSeed = (i * 17 + f * 31 + c * 7) % 100;
+          if (winSeed < 22) {
+            // Soft subtle window light
+            if (winSeed < 10) {
+              ctx.fillStyle = 'rgba(255, 215, 130, 0.36)'; // Soft warm amber
+            } else if (winSeed < 17) {
+              ctx.fillStyle = 'rgba(245, 230, 195, 0.28)'; // Soft warm white
+            } else {
+              ctx.fillStyle = 'rgba(165, 195, 215, 0.24)'; // Soft muted cool office
+            }
+            const wx = x0 + c * (bWidth / cols) + 1;
+            ctx.fillRect(wx, wy, winW, winH);
+          }
+        }
       }
     }
 
@@ -344,7 +399,6 @@ export class TileMap {
     const texH = this.texHeight;
     const texScale = this.texScale;
     const groundTex = this.groundPixels;
-    const outColor = this.outOfBoundsColor;
     const halfW = canvasWidth * 0.5;
 
     for (let by = 0; by < bufH; by++) {
@@ -370,9 +424,13 @@ export class TileMap {
         const tx = (wx * texScale) | 0;
         const ty = (wy * texScale) | 0;
 
-        let color = outColor;
+        let color: number;
         if (tx >= 0 && tx < texW && ty >= 0 && ty < texH) {
           color = groundTex[ty * texW + tx];
+        } else {
+          // Dark urban asphalt foundation with subtle grid seams
+          const isGrid = ((Math.abs(tx) % 24) < 2) || ((Math.abs(ty) % 24) < 2);
+          color = isGrid ? 0xff261b14 : 0xff1c130f;
         }
 
         if (isVeryFar) {
@@ -464,10 +522,11 @@ export class TileMap {
     const cosA = Math.cos(camAngle);
     const sinA = Math.sin(camAngle);
 
-    const minCol = Math.max(0, Math.floor((camX - maxDist) / this.tileSize));
-    const maxCol = Math.min(this.cols - 1, Math.floor((camX + maxDist) / this.tileSize));
-    const minRow = Math.max(0, Math.floor((camY - maxDist) / this.tileSize));
-    const maxRow = Math.min(this.rows - 1, Math.floor((camY + maxDist) / this.tileSize));
+    const borderDepth = 3;
+    const minCol = Math.max(-borderDepth, Math.floor((camX - maxDist) / this.tileSize));
+    const maxCol = Math.min(this.cols - 1 + borderDepth, Math.floor((camX + maxDist) / this.tileSize));
+    const minRow = Math.max(-borderDepth, Math.floor((camY - maxDist) / this.tileSize));
+    const maxRow = Math.min(this.rows - 1 + borderDepth, Math.floor((camY + maxDist) / this.tileSize));
 
     const toCam = (wx: number, wy: number, wz: number): Vec3 => {
       const dx = wx - camX;
@@ -481,7 +540,8 @@ export class TileMap {
 
     for (let r = minRow; r <= maxRow; r++) {
       for (let c = minCol; c <= maxCol; c++) {
-        const tileType = this.grid[r][c];
+        const isBorder = r < 0 || r >= this.rows || c < 0 || c >= this.cols;
+        const tileType = isBorder ? 'BUILDING' : this.grid[r][c];
         const cx = (c + 0.5) * this.tileSize;
         const cy = (r + 0.5) * this.tileSize;
         const cdx = cx - camX;
@@ -493,7 +553,7 @@ export class TileMap {
         if (ctz < -80 || ctz > maxDist) continue;
         if (Math.abs(ctxLat) > Math.max(140, ctz * 1.35 + 110)) continue;
 
-        // Roadside 3D Neon Streetlamps & Synthwave Palm Trees on Sidewalks / Grass
+        // Roadside 3D Streetlamps & Palm Trees on Sidewalks / Grass
         if (tileType !== 'BUILDING') {
           const isSidewalkLamp = tileType === 'SIDEWALK' && (r + c) % 2 === 0;
           const isSynthTree = (tileType === 'GRASS' || tileType === 'SAND') && (r * 7 + c * 13) % 7 === 0;
@@ -506,20 +566,20 @@ export class TileMap {
               const depth = Math.hypot(cdx, cdy);
 
               if (isSidewalkLamp) {
-                const neonColor = (r + c) % 4 === 0 ? '#00e5ff' : '#ff2a85';
+                const lampGlow = (r + c) % 3 === 0 ? 'rgba(255, 230, 160, 0.85)' : 'rgba(255, 205, 120, 0.80)';
                 drawables.push({
                   depth,
                   draw: (ctx: CanvasRenderingContext2D) => {
                     ctx.save();
                     ctx.translate(screenX, screenY);
                     // Pole
-                    ctx.fillStyle = '#2d3436';
+                    ctx.fillStyle = '#262830';
                     ctx.fillRect(-1.2 * s, -48 * s, 2.4 * s, 48 * s);
                     // Lamp arm
                     ctx.fillRect(-1.2 * s, -48 * s, 8 * s, 2 * s);
-                    // Glowing neon bulb
-                    ctx.fillStyle = neonColor;
-                    ctx.fillRect(3 * s, -47 * s, 6 * s, 3 * s);
+                    // Soft warm streetlamp bulb
+                    ctx.fillStyle = lampGlow;
+                    ctx.fillRect(3 * s, -47 * s, 5 * s, 3 * s);
                     ctx.restore();
                   },
                 });
@@ -549,20 +609,36 @@ export class TileMap {
           continue;
         }
 
-        const style = (r + c) % 3;
-        const bHeight = style === 0 ? 115 : style === 1 ? 95 : 155;
-        const inset = 2;
+        const style = isBorder ? Math.abs(r * 5 + c * 11) % 3 : (r + c) % 3;
+        const bHeight = isBorder
+          ? 160 + (Math.abs(r * 29 + c * 43) % 85)
+          : style === 0
+            ? 115
+            : style === 1
+              ? 95
+              : 155;
+        const inset = isBorder ? 0 : 2;
 
         const x0 = c * this.tileSize + inset;
         const x1 = (c + 1) * this.tileSize - inset;
         const y0 = r * this.tileSize + inset;
         const y1 = (r + 1) * this.tileSize - inset;
 
-        // Top Gear 3000 Futuristic Neon Metropolis palette per building style
-        const wallColorNS = style === 0 ? '#1e1a3d' : style === 1 ? '#381730' : '#111936';
-        const wallColorEW = style === 0 ? '#15122b' : style === 1 ? '#291023' : '#0b1126';
-        const accentColor = style === 0 ? '#ff2a85' : style === 1 ? '#ff6b4a' : '#00e5ff';
-        const windowColor = style === 0 ? '#ffbe0b' : style === 1 ? '#ffd166' : '#00e5ff';
+        // Subtle, realistic architectural materials (slate, graphite, deep bronze, corporate dark steel)
+        const wallColorNS = isBorder
+          ? '#151322'
+          : style === 0
+            ? '#1b1928'
+            : style === 1
+              ? '#211c26'
+              : '#171a28';
+        const wallColorEW = isBorder
+          ? '#0e0d18'
+          : style === 0
+            ? '#13111e'
+            : style === 1
+              ? '#17131c'
+              : '#10121e';
 
         // Helper to emit a visible vertical wall face
         const addWall = (
@@ -593,23 +669,29 @@ export class TileMap {
           }
           if (maxX < 0 || minX > canvasWidth) return;
 
-          // Band stripe / neon sign / glass curtain band on the wall
-          const bandLow = style === 0 ? 18 : 28;
-          const bandHigh = style === 0 ? 32 : bHeight - 18;
-          const b0 = toCam(wxA, wyA, bandLow);
-          const b1 = toCam(wxB, wyB, bandLow);
-          const b2 = toCam(wxB, wyB, bandHigh);
-          const b3 = toCam(wxA, wyA, bandHigh);
-          const bandPoly = this.clipAndProjectQuad([b0, b1, b2, b3], nearZ, centerX, horizonY, focalLength);
+          // Precompute realistic architectural floor bands for this face
+          const floorH = 8;
+          const floorStep = 16;
+          const maxFloors = Math.min(8, Math.floor((bHeight - 20) / floorStep));
+          const floorBands: {
+            poly: ScreenPt[];
+            floorIdx: number;
+          }[] = [];
 
-          // Upper glowing window band
-          let winPoly: ScreenPt[] | null = null;
-          if (style !== 2) {
-            const w0 = toCam(wxA, wyA, bHeight * 0.55);
-            const w1 = toCam(wxB, wyB, bHeight * 0.55);
-            const w2 = toCam(wxB, wyB, bHeight * 0.75);
-            const w3 = toCam(wxA, wyA, bHeight * 0.75);
-            winPoly = this.clipAndProjectQuad([w0, w1, w2, w3], nearZ, centerX, horizonY, focalLength);
+          for (let fi = 0; fi < maxFloors; fi++) {
+            const zLow = 14 + fi * floorStep;
+            const zHigh = zLow + floorH;
+            if (zHigh >= bHeight - 6) break;
+
+            const bw0 = toCam(wxA, wyA, zLow);
+            const bw1 = toCam(wxB, wyB, zLow);
+            const bw2 = toCam(wxB, wyB, zHigh);
+            const bw3 = toCam(wxA, wyA, zHigh);
+
+            const bQuad = this.clipAndProjectQuad([bw0, bw1, bw2, bw3], nearZ, centerX, horizonY, focalLength);
+            if (bQuad && bQuad.length >= 3) {
+              floorBands.push({ poly: bQuad, floorIdx: fi });
+            }
           }
 
           const midX = (wxA + wxB) * 0.5;
@@ -621,6 +703,7 @@ export class TileMap {
           drawables.push({
             depth,
             draw: (ctx: CanvasRenderingContext2D) => {
+              // 1. Building wall face
               ctx.fillStyle = baseColor;
               ctx.beginPath();
               ctx.moveTo(poly[0].x, poly[0].y);
@@ -629,31 +712,82 @@ export class TileMap {
               }
               ctx.closePath();
               ctx.fill();
-              ctx.strokeStyle = accentColor;
-              ctx.lineWidth = 1.5;
+
+              // 2. Subtle architectural edge seam (dark, crisp, realistic - NOT bright neon!)
+              ctx.strokeStyle = 'rgba(50, 46, 68, 0.65)';
+              ctx.lineWidth = 1;
               ctx.stroke();
 
-              if (bandPoly) {
-                ctx.fillStyle = accentColor;
-                ctx.beginPath();
-                ctx.moveTo(bandPoly[0].x, bandPoly[0].y);
-                for (let i = 1; i < bandPoly.length; i++) {
-                  ctx.lineTo(bandPoly[i].x, bandPoly[i].y);
+              // 3. Realistic window bands with soft, subtle interior lights
+              const numCols = isBorder ? 6 : 5;
+              for (const fb of floorBands) {
+                const bPts = fb.poly;
+                if (bPts.length === 4) {
+                  // Dark glass recess panel
+                  ctx.fillStyle = 'rgba(14, 13, 22, 0.70)';
+                  ctx.beginPath();
+                  ctx.moveTo(bPts[0].x, bPts[0].y);
+                  ctx.lineTo(bPts[1].x, bPts[1].y);
+                  ctx.lineTo(bPts[2].x, bPts[2].y);
+                  ctx.lineTo(bPts[3].x, bPts[3].y);
+                  ctx.closePath();
+                  ctx.fill();
+
+                  // Subtle lit windows within this floor band
+                  for (let col = 0; col < numCols; col++) {
+                    const winSeed = Math.abs(r * 43 + c * 71 + fb.floorIdx * 19 + col * 13) % 100;
+                    // Only ~32% of windows are lit, with soft warm glow
+                    if (winSeed < 32) {
+                      if (winSeed < 16) {
+                        ctx.fillStyle = 'rgba(255, 220, 140, 0.45)'; // Soft warm amber
+                      } else if (winSeed < 25) {
+                        ctx.fillStyle = 'rgba(240, 230, 200, 0.35)'; // Soft warm white
+                      } else {
+                        ctx.fillStyle = 'rgba(165, 195, 215, 0.30)'; // Soft muted cool office
+                      }
+
+                      const u0 = (col + 0.22) / numCols;
+                      const u1 = (col + 0.78) / numCols;
+
+                      const xBot0 = bPts[0].x + (bPts[1].x - bPts[0].x) * u0;
+                      const yBot0 = bPts[0].y + (bPts[1].y - bPts[0].y) * u0;
+                      const xBot1 = bPts[0].x + (bPts[1].x - bPts[0].x) * u1;
+                      const yBot1 = bPts[0].y + (bPts[1].y - bPts[0].y) * u1;
+
+                      const xTop1 = bPts[3].x + (bPts[2].x - bPts[3].x) * u1;
+                      const yTop1 = bPts[3].y + (bPts[2].y - bPts[3].y) * u1;
+                      const xTop0 = bPts[3].x + (bPts[2].x - bPts[3].x) * u0;
+                      const yTop0 = bPts[3].y + (bPts[2].y - bPts[3].y) * u0;
+
+                      ctx.beginPath();
+                      ctx.moveTo(xBot0, yBot0);
+                      ctx.lineTo(xBot1, yBot1);
+                      ctx.lineTo(xTop1, yTop1);
+                      ctx.lineTo(xTop0, yTop0);
+                      ctx.closePath();
+                      ctx.fill();
+                    }
+                  }
+                } else {
+                  // Fallback for clipped polygons: subtle soft window band
+                  ctx.fillStyle = 'rgba(255, 220, 140, 0.22)';
+                  ctx.beginPath();
+                  ctx.moveTo(bPts[0].x, bPts[0].y);
+                  for (let i = 1; i < bPts.length; i++) {
+                    ctx.lineTo(bPts[i].x, bPts[i].y);
+                  }
+                  ctx.closePath();
+                  ctx.fill();
                 }
-                ctx.closePath();
-                ctx.fill();
               }
 
-              if (winPoly) {
-                ctx.fillStyle = windowColor;
-                ctx.beginPath();
-                ctx.moveTo(winPoly[0].x, winPoly[0].y);
-                for (let i = 1; i < winPoly.length; i++) {
-                  ctx.lineTo(winPoly[i].x, winPoly[i].y);
-                }
-                ctx.closePath();
-                ctx.fill();
-              }
+              // 4. Subtle roof parapet cap line
+              ctx.strokeStyle = 'rgba(95, 88, 120, 0.40)';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(poly[3].x, poly[3].y);
+              ctx.lineTo(poly[2].x, poly[2].y);
+              ctx.stroke();
             },
           });
         };
@@ -725,9 +859,9 @@ export class TileMap {
 
         switch (type) {
           case 'ROAD': ctx.fillStyle = '#3d3963'; break;
-          case 'BUILDING': ctx.fillStyle = '#ff2a85'; break;
-          case 'GRASS': ctx.fillStyle = '#102536'; break;
-          case 'WATER': ctx.fillStyle = '#00e5ff'; break;
+          case 'BUILDING': ctx.fillStyle = '#323049'; break;
+          case 'GRASS': ctx.fillStyle = '#152e28'; break;
+          case 'WATER': ctx.fillStyle = '#17365d'; break;
           case 'SAND': ctx.fillStyle = '#36193b'; break;
           case 'SIDEWALK': ctx.fillStyle = '#26243d'; break;
           default: ctx.fillStyle = '#151525';
