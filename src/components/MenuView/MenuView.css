@@ -94,12 +94,6 @@ h1 {
   font-size: 0.8rem;
 }
 
-.orientation-btn {
-  background-color: #8e44ad;
-  box-shadow: 6px 6px 0px #5e2d79;
-  font-size: 0.85rem;
-}
-
 @media (max-height: 520px) {
   .menu-container {
     padding: 10px 0;
