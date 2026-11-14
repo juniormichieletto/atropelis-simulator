@@ -223,11 +223,11 @@
   color: #00f5d4;
 }
 
-/* Live Multiplayer Leaderboard Widget (Top Right) */
+/* Live Multiplayer Leaderboard Widget (Top Left, below room banner) */
 .mp-score-leaderboard {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  top: 64px;
+  left: 20px;
   display: flex;
   flex-direction: column;
   background: rgba(9, 5, 29, 0.9);
@@ -461,8 +461,9 @@
     padding: 6px 10px;
   }
   .mp-score-leaderboard {
-    top: 50px;
-    right: 10px;
+    top: 44px;
+    left: 10px;
+    right: auto;
     font-size: 6px;
     padding: 6px 8px;
     min-width: 130px;
