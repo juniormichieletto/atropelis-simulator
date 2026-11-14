@@ -94,6 +94,50 @@ h1 {
   font-size: 0.8rem;
 }
 
+.orientation-btn {
+  background-color: #8e44ad;
+  box-shadow: 6px 6px 0px #5e2d79;
+  font-size: 0.85rem;
+}
+
+@media (max-height: 520px) {
+  .menu-container {
+    padding: 10px 0;
+  }
+  .menu-card {
+    padding: 0.8rem 1.4rem;
+    max-height: 94vh;
+    overflow-y: auto;
+    margin: 5px auto;
+    max-width: 620px;
+  }
+  h1 {
+    font-size: 1.1rem;
+    margin-bottom: 0.4rem;
+  }
+  .welcome-text {
+    margin-bottom: 0.6rem;
+    font-size: 0.7rem;
+  }
+  .nickname {
+    display: inline;
+    margin-top: 0;
+    font-size: 0.75rem;
+  }
+  .menu-buttons {
+    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .menu-btn {
+    font-size: 0.65rem;
+    padding: 0.6rem 0.8rem;
+  }
+  .menu-footer {
+    display: none;
+  }
+}
+
 @media (max-width: 600px) {
   .menu-card {
     padding: 1.2rem;

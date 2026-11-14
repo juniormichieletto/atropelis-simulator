@@ -208,4 +208,60 @@ describe('GameCanvas Multiplayer Mode', () => {
     expect(mpScores[0].rank).toBe(2);
     expect(mpScores[0].playersCount).toBe(2);
   });
+
+  it('renders orientation button and handles horizontal mode toggle and rotate prompt', async () => {
+    // Simulate portrait orientation: height > width
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 360 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 740 });
+
+    const requestFullscreenMock = vi.fn().mockResolvedValue(undefined);
+    document.documentElement.requestFullscreen = requestFullscreenMock;
+
+    const lockMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(window.screen, 'orientation', {
+      value: {
+        lock: lockMock,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      },
+      configurable: true,
+      writable: true,
+    });
+
+    render(<GameCanvas onGameOver={vi.fn()} />);
+
+    const orientationBtn = screen.getByTitle(/Alternar Orientação Horizontal/i);
+    expect(orientationBtn).toBeInTheDocument();
+
+    // Clicking orientation button in portrait shows the rotate prompt overlay
+    await act(async () => {
+      fireEvent.click(orientationBtn);
+    });
+
+    expect(requestFullscreenMock).toHaveBeenCalled();
+    expect(screen.getByText('MODO HORIZONTAL')).toBeInTheDocument();
+    expect(screen.getByText(/Gire o seu celular para a posição horizontal/i)).toBeInTheDocument();
+
+    // Dismiss with ENTENDI button
+    fireEvent.click(screen.getByRole('button', { name: /ENTENDI/i }));
+    expect(screen.queryByText('MODO HORIZONTAL')).not.toBeInTheDocument();
+
+    // Open again
+    await act(async () => {
+      fireEvent.click(orientationBtn);
+    });
+    expect(screen.getByText('MODO HORIZONTAL')).toBeInTheDocument();
+
+    // Now simulate user rotating phone into landscape: width > height
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 740 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 360 });
+
+    act(() => {
+      fireEvent(window, new Event('orientationchange'));
+      vi.advanceTimersByTime(350);
+    });
+
+    // Rotate prompt is automatically dismissed
+    expect(screen.queryByText('MODO HORIZONTAL')).not.toBeInTheDocument();
+  });
 });

@@ -35,6 +35,10 @@ export interface MpLeaderboardRacer {
   isDisconnected?: boolean;
 }
 
+interface ElementWithFullscreen extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void>;
+}
+
 export const GameCanvas: React.FC<GameCanvasProps> = ({
   onGameOver,
   multiplayerService,
@@ -50,6 +54,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [mpFinalResults, setMpFinalResults] = useState<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const mpFinalResultsRef = useRef<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const [liveMpScores, setLiveMpScores] = useState<MpLeaderboardRacer[]>([]);
+  const [showRotatePrompt, setShowRotatePrompt] = useState(false);
+
+  const handleToggleOrientation = async () => {
+    soundService.playUiSound();
+    try {
+      if (!document.fullscreenElement) {
+        const root = document.documentElement as ElementWithFullscreen;
+        if (root.requestFullscreen) {
+          await root.requestFullscreen();
+        } else if (root.webkitRequestFullscreen) {
+          await root.webkitRequestFullscreen();
+        }
+      }
+      if ('orientation' in screen && screen.orientation && 'lock' in screen.orientation) {
+        await screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch {
+      // Ignored if unsupported
+    }
+    if (window.innerHeight > window.innerWidth) {
+      setShowRotatePrompt(prev => !prev);
+    }
+  };
 
   const initialSpawn = multiplayerService
     ? getPlayerSpawnPoint(multiplayerService.getMySpawnIndex(), multiplayerService.getSpawnSeed())
@@ -271,8 +298,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const handleResize = () => {
       setDimensions({ width: window.innerWidth, height: window.innerHeight });
+      if (window.innerWidth >= window.innerHeight) {
+        setShowRotatePrompt(false);
+      }
     };
     window.addEventListener('resize', handleResize);
+
+    const handleOrientationChange = () => {
+      handleResize();
+      setTimeout(handleResize, 100);
+      setTimeout(handleResize, 300);
+      setTimeout(handleResize, 600);
+    };
+    window.addEventListener('orientationchange', handleOrientationChange);
+    if (window.screen?.orientation) {
+      window.screen.orientation.addEventListener('change', handleOrientationChange);
+    }
 
     const handleKeyDownDismiss = (e: KeyboardEvent) => {
       if (mpFinalResultsRef.current) return;
@@ -284,7 +325,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     window.addEventListener('keydown', handleKeyDownDismiss);
 
     const isHudTarget = (target: EventTarget | null) => {
-      return target instanceof Element && Boolean(target.closest('.game-hud') || target.closest('.quit-btn') || target.closest('.mp-results-overlay'));
+      return target instanceof Element && Boolean(
+        target.closest('.game-hud') ||
+        target.closest('.quit-btn') ||
+        target.closest('.orientation-btn') ||
+        target.closest('.rotate-prompt-overlay') ||
+        target.closest('.mp-results-overlay')
+      );
     };
 
     const handleMouseDown = (e: MouseEvent) => {
@@ -370,6 +417,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('blur', pauseGame);
       window.removeEventListener('focus', resumeGame);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      if (window.screen?.orientation) {
+        window.screen.orientation.removeEventListener('change', handleOrientationChange);
+      }
       window.removeEventListener('keydown', handleKeyDownDismiss);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mousemove', handleMouseMove);
@@ -710,10 +761,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     ctx.restore();
 
     // 5. RADAR MINIMAP (with 3D Camera View Cone)
-    const mapW = 150;
-    const mapH = 150;
-    const mapX = W - mapW - 20;
-    const mapY = 20;
+    const isSmallScreen = H < 520;
+    const mapW = isSmallScreen ? 95 : 150;
+    const mapH = isSmallScreen ? 95 : 150;
+    const mapX = W - mapW - (isSmallScreen ? 12 : 20);
+    const mapY = isSmallScreen ? 12 : 20;
 
     const { scaleX, scaleY } = tileMap.drawMinimap(ctx, mapX, mapY, mapW, mapH);
 
@@ -731,7 +783,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     // Camera FOV Cone on radar minimap
     const px = mapX + player.x * scaleX;
     const py = mapY + player.y * scaleY;
-    const coneLen = 30;
+    const coneLen = isSmallScreen ? 20 : 30;
     const fovHalf = 0.55;
     ctx.fillStyle = 'rgba(0, 229, 255, 0.35)';
     ctx.beginPath();
@@ -908,6 +960,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         </div>
       )}
 
+      {showRotatePrompt && dimensions.height > dimensions.width && (
+        <div className="rotate-prompt-overlay" onClick={() => setShowRotatePrompt(false)}>
+          <div className="rotate-prompt-card" onClick={(e) => e.stopPropagation()}>
+            <div className="rotate-icon-anim">📱 ➔ 📲</div>
+            <h3>MODO HORIZONTAL</h3>
+            <p>Gire o seu celular para a posição horizontal (paisagem) para a melhor experiência!</p>
+            <button
+              className="rotate-confirm-btn"
+              onClick={() => setShowRotatePrompt(false)}
+            >
+              ENTENDI 👍
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="game-hud bottom">
         <div className="hud-group">
           {multiplayerService ? (
@@ -932,22 +1000,32 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         </div>
         <div className="hud-group right">
           <div className="hud-item timer">TIME: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</div>
-          <button
-            className="quit-btn"
-            onClick={() => {
-              soundService.playUiSound();
-              if (multiplayerService) {
-                multiplayerService.leave();
-                if (onBackToMenu) {
-                  onBackToMenu();
-                  return;
+          <div className="hud-actions-row">
+            <button
+              className="orientation-btn"
+              title="Alternar Orientação Horizontal"
+              aria-label="Alternar Orientação Horizontal"
+              onClick={handleToggleOrientation}
+            >
+              🔄
+            </button>
+            <button
+              className="quit-btn"
+              onClick={() => {
+                soundService.playUiSound();
+                if (multiplayerService) {
+                  multiplayerService.leave();
+                  if (onBackToMenu) {
+                    onBackToMenu();
+                    return;
+                  }
                 }
-              }
-              onGameOver(score);
-            }}
-          >
-            {multiplayerService ? 'SAIR' : 'ABORT'}
-          </button>
+                onGameOver(score);
+              }}
+            >
+              {multiplayerService ? 'SAIR' : 'ABORT'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

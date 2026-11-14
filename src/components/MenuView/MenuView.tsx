@@ -11,6 +11,10 @@ interface MenuViewProps {
   onStartMultiplayer?: () => void;
 }
 
+interface ElementWithFullscreen extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void>;
+}
+
 export const MenuView: React.FC<MenuViewProps> = ({
   userName,
   onStartGame,
@@ -18,6 +22,25 @@ export const MenuView: React.FC<MenuViewProps> = ({
   onChangeName,
   onStartMultiplayer,
 }) => {
+  const handleToggleOrientation = async () => {
+    soundService.playUiSound();
+    try {
+      if (!document.fullscreenElement) {
+        const root = document.documentElement as ElementWithFullscreen;
+        if (root.requestFullscreen) {
+          await root.requestFullscreen();
+        } else if (root.webkitRequestFullscreen) {
+          await root.webkitRequestFullscreen();
+        }
+      }
+      if ('orientation' in screen && screen.orientation && 'lock' in screen.orientation) {
+        await screen.orientation.lock('landscape').catch(() => {});
+      }
+    } catch {
+      // Ignored if unsupported
+    }
+  };
+
   return (
     <div className="menu-container" style={{ backgroundImage: `url(${backgroundImage})` }}>
       <div className="menu-card">
@@ -60,6 +83,12 @@ export const MenuView: React.FC<MenuViewProps> = ({
             }}
           >
             CHANGE NAME
+          </button>
+          <button
+            className="menu-btn orientation-btn"
+            onClick={handleToggleOrientation}
+          >
+            MODO HORIZONTAL 🔄
           </button>
         </div>
       </div>
