@@ -124,16 +124,17 @@ export class PlayerCar {
   /**
    * 🔒 REGRA ESTRITA DE DESIGN (DIMENSION & SCALE FREEZE - NÃO ALTERAR):
    * As dimensões base do carro (largura 164px, altura 72px) e suas fórmulas
-   * de escala responsiva (Desktop: W/900 clamp 0.85..1.25; Mobile Paisagem: H/500 clamp 0.65..1.0)
-   * estão congeladas e aprovadas pelo usuário.
+   * de escala responsiva (Desktop: min(W/900, roadSpan/284) com piso 0.85;
+   * Mobile Paisagem: H/450 clamp 0.65..1.0) mantêm proporção 1:1 com a câmera 3D.
    *
    * Returns current on-screen visual footprint of the car in pixels.
    */
   getVisualDimensions(canvasWidth: number, canvasHeight: number): { width: number; height: number; scale: number } {
     const isLandscapeMobile = canvasHeight < 520;
+    const roadSpan = (canvasHeight - 92) - Math.floor(canvasHeight * 0.38);
     const scale = isLandscapeMobile
-      ? Math.max(0.65, Math.min(1.0, canvasHeight / 500))
-      : Math.max(0.85, Math.min(1.25, canvasWidth / 900));
+      ? Math.max(0.65, Math.min(1.0, canvasHeight / 450))
+      : Math.max(0.85, Math.min(canvasWidth / 900, roadSpan / 284));
     return { width: 164 * scale, height: 72 * scale, scale };
   }
 
@@ -153,9 +154,7 @@ export class PlayerCar {
     ctx.rotate(steer * 0.055);
 
     // Scale car proportionally for mobile landscape and desktop screens
-    const scale = isLandscapeMobile
-      ? Math.max(0.65, Math.min(1.0, canvasHeight / 500))
-      : Math.max(0.85, Math.min(1.25, canvasWidth / 900));
+    const { scale } = this.getVisualDimensions(canvasWidth, canvasHeight);
     ctx.scale(scale, scale);
 
     const yaw = steer * 14; // Perspective shift showing left/right flank when turning

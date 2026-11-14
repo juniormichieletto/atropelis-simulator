@@ -581,9 +581,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       tileMap
     );
 
-    const carScale = isLandscapeMobile
-      ? Math.max(0.65, Math.min(1.0, H / 500))
-      : Math.max(0.85, Math.min(1.25, W / 900));
+    const { scale: carScale } = player.getVisualDimensions(W, H);
     const carScreenX = W * 0.5 + player.steerVisual * 26;
     const carBottomY = isLandscapeMobile ? H - 52 : H - 78;
     // Visual bumper/fender footprint of the player's car on screen
@@ -604,7 +602,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const tx = -dx * sinCam + dy * cosCam;
       const entityScreenX = W * 0.5 + (tx / tz) * focalLength;
       const entityScreenY = baseHorizonY + (camHeight / tz) * focalLength;
-      const s = Math.min((focalLength / tz) * ENTITY_SCALE, 28);
+      const s = Math.min((focalLength / Math.max(tz, 76)) * ENTITY_SCALE, 48);
       const relAngle = entity.angle - (camAngle + Math.atan2(tx, tz) * 0.55);
       const sideAmt = Math.abs(Math.sin(relAngle));
 
@@ -615,7 +613,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             ? (1.7 + sideAmt * 2.2) * s
             : entity.type === 'MOTORCYCLE'
               ? (2.4 + sideAmt * 2.5) * s
-              : (6.0 + sideAmt * 2.8) * s;
+              : (5.8 + sideAmt * 1.2) * s;
 
       // Require both vertical road-contact overlap (front bumper to rear wheels) AND horizontal sprite overlap
       if (

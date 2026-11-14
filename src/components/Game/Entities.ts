@@ -241,7 +241,7 @@ export class Entity {
   }
 
   getVisualDimensions(scale: number, relAngle: number = 0): { width: number; height: number } {
-    const s = Math.min(scale * ENTITY_SCALE, 28);
+    const s = Math.min(scale * ENTITY_SCALE, 48);
     const side = Math.sin(relAngle);
     const absSide = Math.abs(side);
     const isSideOrDiagonal = absSide >= 0.38;
@@ -261,8 +261,8 @@ export class Entity {
       return { width: motoW, height: motoH };
     }
     // CAR
-    const carH = isSideOrDiagonal ? 7.2 * s : 7.6 * s;
-    const carW = isSideOrDiagonal ? (6.4 + sideFactor * 3.0) * 2 * s : (6.8 + absSide * 2.0) * 2 * s;
+    const carH = isSideOrDiagonal ? 5.5 * s : 5.8 * s;
+    const carW = isSideOrDiagonal ? (5.4 + sideFactor * 1.6) * 2 * s : (6.4 + absSide * 0.8) * 2 * s;
     return { width: carW, height: carH };
   }
 
@@ -278,7 +278,7 @@ export class Entity {
     relAngle: number
   ) {
     // Scale entities smoothly according to calibrated 3D world scale and clamp extreme near-camera plane
-    const s = Math.min(scale * ENTITY_SCALE, 28);
+    const s = Math.min(scale * ENTITY_SCALE, 48);
     if (s < 0.2) return;
 
     const side = Math.sin(relAngle); // -1 (moving left) to +1 (moving right)
@@ -836,8 +836,9 @@ export class Entity {
       const pal = this.palette;
 
       if (isSideOrDiagonal) {
-        const halfLen = (6.4 + sideFactor * 3.0) * s;
+        const halfLen = (5.4 + sideFactor * 1.6) * s;
         const carH = 7.2 * s;
+        const vScale = 5.5 / 7.2;
 
         // 1. Elongated Ground Shadow underneath supercar profile
         ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
@@ -853,11 +854,11 @@ export class Entity {
         );
         ctx.fill();
 
-        ctx.translate(screenX, screenY - airOffsetY - carH * 0.5);
+        ctx.translate(screenX, screenY - airOffsetY - carH * vScale * 0.5);
         if (this.isHit) {
           ctx.rotate(this.spinAngle);
         }
-        ctx.scale(dir, 1);
+        ctx.scale(dir, vScale);
         ctx.translate(0, carH * 0.5);
 
         // 2. 3/4 Diagonal Quarter Panel when moving diagonally relative to camera
@@ -990,8 +991,9 @@ export class Entity {
         this.drawSideWheel(ctx, -halfLen * 0.56, -1.75 * s, 1.85 * s, '#dfe6e9', pal.accent, treadTick);
         this.drawSideWheel(ctx, halfLen * 0.56, -1.75 * s, 1.85 * s, '#dfe6e9', pal.accent, treadTick);
       } else {
-        const halfW = (6.8 + absSide * 2.0) * s;
+        const halfW = (6.4 + absSide * 0.8) * s;
         const carH = 7.6 * s;
+        const vScale = 5.8 / 7.6;
         const yaw = side * 2.2 * s;
 
         // 1. Ground Shadow underneath supercar
@@ -1008,10 +1010,11 @@ export class Entity {
         );
         ctx.fill();
 
-        ctx.translate(screenX, screenY - airOffsetY - carH * 0.5);
+        ctx.translate(screenX, screenY - airOffsetY - carH * vScale * 0.5);
         if (this.isHit) {
           ctx.rotate(this.spinAngle);
         }
+        ctx.scale(1, vScale);
         ctx.translate(0, carH * 0.5);
 
         // 2. Front wheels peeking out when slightly angled
@@ -1173,8 +1176,8 @@ export class EntityManager {
 
     while (created < initialCount && attempts < maxAttempts) {
       attempts++;
-      const x = 60 + Math.random() * (mapW - 120);
-      const y = 60 + Math.random() * (mapH - 120);
+      const x = 360 + Math.random() * Math.max(100, mapW - 720);
+      const y = 360 + Math.random() * Math.max(100, mapH - 720);
 
       if (tileMap && tileMap.isColliding(x, y)) {
         continue;
@@ -1282,7 +1285,7 @@ export class EntityManager {
       if (screenX < -140 || screenX > canvasWidth + 140) continue;
 
       const screenY = horizonY + (camHeight / tz) * focalLength;
-      const scale = focalLength / tz;
+      const scale = focalLength / Math.max(tz, 76);
       const rayAngle = Math.atan2(tx, tz);
       const relAngle = entity.angle - (camAngle + rayAngle * 0.55);
       const depth = Math.hypot(dx, dy);

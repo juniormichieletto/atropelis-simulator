@@ -111,8 +111,8 @@ describe('Entity & EntityManager', () => {
     drawables[0].draw(ctx);
   });
 
-  it('maintains realistic physical scale proportions between rival vehicles, pedestrians, and player car', () => {
-    expect(ENTITY_SCALE).toBeGreaterThanOrEqual(1.8);
+  it('maintains realistic physical scale proportions between rival vehicles, pedestrians, and player car across all desktop and mobile resolutions', () => {
+    expect(ENTITY_SCALE).toBe(2.1);
 
     const player = new PlayerCar(450, 850);
     const rivalCar = new Entity(450, 850, 'CAR');
@@ -120,32 +120,52 @@ describe('Entity & EntityManager', () => {
     const moto = new Entity(450, 850, 'MOTORCYCLE');
     const bike = new Entity(450, 850, 'BIKE');
 
-    // 1. Desktop Viewport (1280x720)
-    const desktopPlayerDims = player.getVisualDimensions(1280, 720);
-    // Camera projection scale at player contact line (tz = 82)
-    const desktopFocalLength = Math.max(320, (((720 - 92) - Math.floor(720 * 0.38)) * 82) / 52);
-    const desktopProjScale = desktopFocalLength / 82;
+    const desktopViewports = [
+      { w: 1280, h: 720 },
+      { w: 1366, h: 768 },
+      { w: 1920, h: 950 },
+      { w: 1920, h: 1080 },
+      { w: 2560, h: 1440 },
+    ];
 
-    const desktopRivalDims = rivalCar.getVisualDimensions(desktopProjScale, 0);
-    const desktopPersonDims = person.getVisualDimensions(desktopProjScale, 0);
-    const desktopMotoDims = moto.getVisualDimensions(desktopProjScale, Math.PI / 2); // side profile
-    const desktopBikeDims = bike.getVisualDimensions(desktopProjScale, Math.PI / 2);
+    for (const { w, h } of desktopViewports) {
+      const playerDims = player.getVisualDimensions(w, h);
+      const focalLength = Math.max(320, (((h - 92) - Math.floor(h * 0.38)) * 82) / 52);
+      const projScaleAtPlayer = focalLength / 82;
 
-    // Rival car width must match player car width within ±15% (never miniature or half size)
-    const carWidthRatio = desktopRivalDims.width / desktopPlayerDims.width;
-    expect(carWidthRatio).toBeGreaterThanOrEqual(0.85);
-    expect(carWidthRatio).toBeLessThanOrEqual(1.20);
+      const rivalRearDims = rivalCar.getVisualDimensions(projScaleAtPlayer, 0);
+      const rivalSideDims = rivalCar.getVisualDimensions(projScaleAtPlayer, Math.PI / 2);
+      const personDims = person.getVisualDimensions(projScaleAtPlayer, 0);
+      const motoDims = moto.getVisualDimensions(projScaleAtPlayer, Math.PI / 2);
+      const bikeDims = bike.getVisualDimensions(projScaleAtPlayer, Math.PI / 2);
 
-    // Standing person height must be taller than sports car body height
-    expect(desktopPersonDims.height).toBeGreaterThan(desktopPlayerDims.height * 1.05);
+      // Rival car at same distance (tz = 82) must NEVER be wider or taller than player car (0.85..1.00)
+      const widthRatio = rivalRearDims.width / playerDims.width;
+      const heightRatio = rivalRearDims.height / playerDims.height;
+      expect(widthRatio).toBeGreaterThanOrEqual(0.85);
+      expect(widthRatio).toBeLessThanOrEqual(1.0);
+      expect(heightRatio).toBeGreaterThanOrEqual(0.85);
+      expect(heightRatio).toBeLessThanOrEqual(1.0);
 
-    // Motorcycle length in profile must be substantial (at least 60% of player car width)
-    expect(desktopMotoDims.width).toBeGreaterThan(desktopPlayerDims.width * 0.6);
+      // Even in full side profile at tz = 82, rival car width must not exceed player car width
+      expect(rivalSideDims.width / playerDims.width).toBeLessThanOrEqual(1.0);
 
-    // Bike length in profile must be substantial (at least 50% of player car width)
-    expect(desktopBikeDims.width).toBeGreaterThan(desktopPlayerDims.width * 0.5);
+      // Rival car ahead of player (tz = 110) must be strictly smaller than player car
+      const aheadScale = focalLength / 110;
+      const rivalAheadDims = rivalCar.getVisualDimensions(aheadScale, 0);
+      expect(rivalAheadDims.width).toBeLessThan(playerDims.width * 0.78);
+      expect(rivalAheadDims.height).toBeLessThan(playerDims.height * 0.78);
 
-    // 2. Mobile Landscape Viewport (844x390)
+      // Standing person height must be taller than sports car roof
+      expect(personDims.height).toBeGreaterThan(playerDims.height * 1.04);
+      expect(personDims.height).toBeGreaterThan(rivalRearDims.height * 1.1);
+
+      // 2-wheel vehicles must remain proportional
+      expect(motoDims.width).toBeGreaterThan(playerDims.width * 0.6);
+      expect(bikeDims.width).toBeGreaterThan(playerDims.width * 0.5);
+    }
+
+    // Mobile Landscape Viewport (844x390)
     const mobilePlayerDims = player.getVisualDimensions(844, 390);
     const mobileContactY = 390 - 64;
     const mobileHorizonY = Math.floor(390 * 0.35);
@@ -155,13 +175,11 @@ describe('Entity & EntityManager', () => {
     const mobileRivalDims = rivalCar.getVisualDimensions(mobileProjScale, 0);
     const mobilePersonDims = person.getVisualDimensions(mobileProjScale, 0);
 
-    // In mobile landscape mode, rival car must still match player car width within ±15%
-    const mobileCarRatio = mobileRivalDims.width / mobilePlayerDims.width;
-    expect(mobileCarRatio).toBeGreaterThanOrEqual(0.85);
-    expect(mobileCarRatio).toBeLessThanOrEqual(1.20);
-
-    // Pedestrian must still be proportional to the car on mobile landscape
-    expect(mobilePersonDims.height).toBeGreaterThan(mobilePlayerDims.height * 0.95);
+    expect(mobileRivalDims.width / mobilePlayerDims.width).toBeGreaterThanOrEqual(0.85);
+    expect(mobileRivalDims.width / mobilePlayerDims.width).toBeLessThanOrEqual(1.0);
+    expect(mobileRivalDims.height / mobilePlayerDims.height).toBeGreaterThanOrEqual(0.85);
+    expect(mobileRivalDims.height / mobilePlayerDims.height).toBeLessThanOrEqual(1.02);
+    expect(mobilePersonDims.height).toBeGreaterThan(mobilePlayerDims.height * 1.05);
   });
 
   it('multiplayer mode disables respawn: obstacle count strictly decreases after collisions', () => {

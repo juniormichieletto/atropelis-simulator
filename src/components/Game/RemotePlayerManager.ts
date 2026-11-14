@@ -164,7 +164,7 @@ export class RemotePlayerManager {
       if (screenX < -120 || screenX > canvasWidth + 120) continue;
 
       const screenY = horizonY + (camHeight / tz) * focalLength;
-      const s = Math.min(22, focalLength / tz);
+      const s = Math.min(28, focalLength / Math.max(tz, 76));
       const depth = Math.hypot(dx, dy);
 
       drawables.push({
@@ -175,7 +175,7 @@ export class RemotePlayerManager {
 
           // 2. Draw Floating Name Tag & Crown above car
           ctx.save();
-          const tagY = screenY - 8.5 * s * ENTITY_SCALE;
+          const tagY = screenY - 6.8 * s * ENTITY_SCALE;
           const fontSize = Math.max(9, Math.min(13, s * 0.9));
           ctx.font = `bold ${Math.round(fontSize)}px "Press Start 2P", monospace`;
           ctx.textAlign = 'center';
