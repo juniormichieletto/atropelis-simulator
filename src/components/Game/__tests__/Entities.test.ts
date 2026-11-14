@@ -163,4 +163,54 @@ describe('Entity & EntityManager', () => {
     // Pedestrian must still be proportional to the car on mobile landscape
     expect(mobilePersonDims.height).toBeGreaterThan(mobilePlayerDims.height * 0.95);
   });
+
+  it('multiplayer mode disables respawn: obstacle count strictly decreases after collisions', () => {
+    const manager = new EntityManager();
+    const map = new TileMap();
+
+    // Initialize multiplayer with 10 finite obstacles
+    manager.initMultiplayer(10, map);
+    expect(manager.allowRespawn).toBe(false);
+    expect(manager.entities.length).toBe(10);
+
+    const initialCount = manager.entities.length;
+
+    // Normal movement update: count stays at 10 (no distance despawn, no new spawns)
+    manager.update(0.1, 450, 850, map, 0);
+    expect(manager.entities.length).toBe(initialCount);
+
+    // Hit the first entity
+    const victim1 = manager.entities[0];
+    victim1.triggerHit(450, 850, 0, 150);
+    expect(victim1.isHit).toBe(true);
+
+    // While in flight, the entity is still alive and visible
+    manager.update(0.2, 450, 850, map, 0);
+    expect(victim1.isAlive).toBe(true);
+    expect(manager.entities.length).toBe(initialCount);
+
+    // Advance time past maxHitDuration (0.95s) so the accident completes
+    manager.update(1.0, 450, 850, map, 0);
+    expect(victim1.isAlive).toBe(false);
+
+    // Update again: victim1 is removed and NO replacement is spawned!
+    manager.update(0.1, 450, 850, map, 0);
+    expect(manager.entities.length).toBe(initialCount - 1);
+
+    // Hit another entity
+    const victim2 = manager.entities[0];
+    victim2.triggerHit(450, 850, 0, 150);
+    // Advance past maxHitDuration
+    manager.update(1.0, 450, 850, map, 0);
+    manager.update(0.1, 450, 850, map, 0);
+
+    // Count must have decreased again: exactly 8 remaining
+    expect(manager.entities.length).toBe(initialCount - 2);
+
+    // In solo mode with allowRespawn = true, respawn must replenish entities
+    manager.allowRespawn = true;
+    manager.maxEntities = 15;
+    manager.update(0.1, 450, 850, map, 0);
+    expect(manager.entities.length).toBe(15);
+  });
 });

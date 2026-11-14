@@ -1151,6 +1151,42 @@ export class EntityManager {
   entities: Entity[] = [];
   maxEntities: number = 65;
   spawnRange: number = 950; // Relative to player
+  allowRespawn: boolean = true; // Disabled in multiplayer: obstacles only decrease on hits
+
+  /**
+   * Initializes a finite population of obstacles scattered across the map for multiplayer mode.
+   * In multiplayer, obstacles never respawn once destroyed, so the count strictly decreases.
+   */
+  initMultiplayer(
+    initialCount: number = 40,
+    tileMap?: { isColliding: (x: number, y: number) => boolean; rows: number; cols: number; tileSize: number }
+  ) {
+    this.allowRespawn = false;
+    this.entities = [];
+    const mapW = tileMap ? tileMap.cols * tileMap.tileSize : 3000;
+    const mapH = tileMap ? tileMap.rows * tileMap.tileSize : 2500;
+    const types: EntityType[] = ['PERSON', 'PERSON', 'PERSON', 'BIKE', 'BIKE', 'MOTORCYCLE', 'CAR', 'CAR'];
+
+    let created = 0;
+    let attempts = 0;
+    const maxAttempts = initialCount * 25;
+
+    while (created < initialCount && attempts < maxAttempts) {
+      attempts++;
+      const x = 60 + Math.random() * (mapW - 120);
+      const y = 60 + Math.random() * (mapH - 120);
+
+      if (tileMap && tileMap.isColliding(x, y)) {
+        continue;
+      }
+
+      const type = types[created % types.length];
+      const entity = new Entity(x, y, type);
+      entity.id = created + 1;
+      this.entities.push(entity);
+      created++;
+    }
+  }
 
   update(
     dt: number,
@@ -1159,15 +1195,21 @@ export class EntityManager {
     tileMap?: { isColliding: (x: number, y: number) => boolean; rows: number; cols: number; tileSize: number },
     playerAngle: number = 0
   ) {
-    // Remove far away or dead entities
-    this.entities = this.entities.filter(e => {
-      const dist = Math.hypot(e.x - playerX, e.y - playerY);
-      return e.isAlive && dist < this.spawnRange + 250;
-    });
+    if (this.allowRespawn) {
+      // Solo mode: Remove far away or dead entities, then continuously respawn up to maxEntities
+      this.entities = this.entities.filter(e => {
+        const dist = Math.hypot(e.x - playerX, e.y - playerY);
+        return e.isAlive && dist < this.spawnRange + 250;
+      });
 
-    // Spawn new entities if needed
-    while (this.entities.length < this.maxEntities) {
-      this.spawnEntity(playerX, playerY, tileMap, playerAngle);
+      // Spawn new entities if needed
+      while (this.entities.length < this.maxEntities) {
+        this.spawnEntity(playerX, playerY, tileMap, playerAngle);
+      }
+    } else {
+      // Multiplayer mode: No respawn! Obstacles remain on the map until destroyed.
+      // Filter out only completely dead entities (hit animation finished or fell out of bounds).
+      this.entities = this.entities.filter(e => e.isAlive);
     }
 
     this.entities.forEach(e => e.update(dt, tileMap));

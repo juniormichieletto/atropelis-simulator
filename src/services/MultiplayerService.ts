@@ -40,6 +40,7 @@ export type MultiplayerEventCallback = {
   onRemotePlayerUpdate?: (data: PlayerNetworkData) => void;
   onNpcUpdate?: (npcs: NpcNetworkData[]) => void;
   onPlayerHit?: (hitterId: string, targetId: string) => void;
+  onNpcHit?: (npcId: number, hitterId: string, hitParams?: { x: number; y: number; angle: number; speed: number }) => void;
   onPeerLeave?: (peerId: string) => void;
 };
 
@@ -73,6 +74,7 @@ export class MultiplayerService {
   private sendNpcStateAction: ((data: NpcNetworkData[]) => void) | null = null;
   private sendStartGameAction: ((data: { timestamp: number; spawnSeed?: number; peerOrder?: string[] }) => void) | null = null;
   private sendHitAction: ((data: { hitterId: string; targetId: string }) => void) | null = null;
+  private sendNpcHitAction: ((data: { npcId: number; hitterId: string; x: number; y: number; angle: number; speed: number }) => void) | null = null;
 
   constructor(name: string) {
     this.myName = name || 'Racer';
@@ -100,6 +102,7 @@ export class MultiplayerService {
         const npcStateAction = this.room.makeAction<NpcNetworkData[]>('npc_state');
         const startGameAction = this.room.makeAction<{ timestamp: number; spawnSeed?: number; peerOrder?: string[] }>('start_game');
         const hitAction = this.room.makeAction<{ hitterId: string; targetId: string }>('hit_event');
+        const npcHitAction = this.room.makeAction<{ npcId: number; hitterId: string; x: number; y: number; angle: number; speed: number }>('npc_hit');
 
         this.sendPeerInfoAction = (data, recipientPeerId) => {
           if (recipientPeerId) {
@@ -119,6 +122,9 @@ export class MultiplayerService {
         };
         this.sendHitAction = (data) => {
           void hitAction.send(data);
+        };
+        this.sendNpcHitAction = (data) => {
+          void npcHitAction.send(data);
         };
 
         // Handle peer joins
@@ -165,6 +171,11 @@ export class MultiplayerService {
         // Receive hit event
         hitAction.onMessage(({ hitterId, targetId }) => {
           this.callbacks.onPlayerHit?.(hitterId, targetId);
+        });
+
+        // Receive NPC hit event
+        npcHitAction.onMessage((data) => {
+          this.callbacks.onNpcHit?.(data.npcId, data.hitterId, data);
         });
 
         // Broadcast my presence
@@ -247,6 +258,11 @@ export class MultiplayerService {
   sendHit(targetId: string) {
     if (!this.sendHitAction) return;
     this.sendHitAction({ hitterId: this.myId, targetId });
+  }
+
+  sendNpcHit(npcId: number, x: number, y: number, angle: number, speed: number) {
+    if (!this.sendNpcHitAction || !this.isConnected) return;
+    this.sendNpcHitAction({ npcId, hitterId: this.myId, x, y, angle, speed });
   }
 
   getConnectedPeers(): RoomPeerInfo[] {

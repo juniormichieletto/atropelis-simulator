@@ -142,6 +142,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   useEffect(() => {
     if (!multiplayerService) return;
 
+    // In multiplayer mode: obstacles NEVER respawn; population strictly decreases on collisions
+    entityManagerRef.current.allowRespawn = false;
+    if (multiplayerService.isHost) {
+      entityManagerRef.current.initMultiplayer(40, tileMapRef.current);
+    } else {
+      entityManagerRef.current.entities = [];
+    }
+
     // Apply player's unique randomized spawn point and start grace period
     const spawn = getPlayerSpawnPoint(
       multiplayerService.getMySpawnIndex(),
@@ -178,6 +186,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       onNpcUpdate: (npcList) => {
         if (!multiplayerService.isHost) {
           const em = entityManagerRef.current;
+          const remoteIds = new Set(npcList.map((n) => n.id));
+
           npcList.forEach((n) => {
             let local = em.entities.find((e) => e.id === n.id);
             if (!local) {
@@ -193,12 +203,29 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             local.speed = n.speed;
             local.isHit = n.isHit;
           });
+
+          // In multiplayer, clean up entities that the host already despawned/destroyed
+          em.entities = em.entities.filter((e) => remoteIds.has(e.id) || e.isHit);
         }
       },
       onPlayerHit: (hitterId) => {
         if (hitterId !== multiplayerService.myId && !mpFinalResultsRef.current) {
           soundService.playHitSound('CAR');
           shakeTimerRef.current = 0.2;
+        }
+      },
+      onNpcHit: (npcId, hitterId, hitParams) => {
+        if (hitterId !== multiplayerService.myId) {
+          const target = entityManagerRef.current.entities.find((e) => e.id === npcId);
+          if (target && !target.isHit) {
+            target.triggerHit(
+              hitParams?.x ?? target.x,
+              hitParams?.y ?? target.y,
+              hitParams?.angle ?? 0,
+              hitParams?.speed ?? 120
+            );
+            soundService.playHitSound(target.type);
+          }
         }
       },
     });
@@ -602,6 +629,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         soundService.playHitSound(entity.type);
         shakeTimerRef.current = entity.type === 'CAR' ? 0.22 : 0.1;
 
+        if (multiplayerService) {
+          multiplayerService.sendNpcHit(entity.id, player.x, player.y, player.angle, player.speed);
+        }
+
         if (canvas) {
           const sign = entity.points > 0 ? '+' : '';
           popupsRef.current.push({
@@ -639,9 +670,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         player.speed = -player.speed * 0.45;
         multiplayerService.sendHit(collidedPeer.id);
 
+        // Crash into another player: award +20 points in multiplayer
+        setScore(prev => prev + 20);
+
         popupsRef.current.push({
           id: nextPopupIdRef.current++,
-          text: `BUMP: ${collidedPeer.name}!`,
+          text: `+20 PTS: ${collidedPeer.name}!`,
           color: collidedPeer.color,
           x: W * 0.5,
           y: H - 120,
@@ -670,17 +704,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         if (lastNpcSendRef.current >= 0.065) {
           lastNpcSendRef.current = 0;
           multiplayerService.sendNpcUpdate(
-            entityManager.entities.slice(0, 16).map(e => ({
-              id: e.id,
-              type: e.type,
-              x: e.x,
-              y: e.y,
-              z: e.z,
-              angle: e.angle,
-              speed: e.speed,
-              isHit: e.isHit,
-              color: e.color,
-            }))
+            entityManager.entities
+              .filter(e => e.isAlive)
+              .map(e => ({
+                id: e.id,
+                type: e.type,
+                x: e.x,
+                y: e.y,
+                z: e.z,
+                angle: e.angle,
+                speed: e.speed,
+                isHit: e.isHit,
+                color: e.color,
+              }))
           );
         }
       }

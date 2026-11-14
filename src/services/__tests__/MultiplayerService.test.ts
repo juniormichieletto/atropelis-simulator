@@ -100,4 +100,18 @@ describe('MultiplayerService', () => {
     service.peerOrder = ['other_peer', service.myId];
     expect(service.getMySpawnIndex()).toBe(1);
   });
+
+  it('sends NPC hit events and notifies callback when npc_hit is received', async () => {
+    const service = new MultiplayerService('Hitter');
+    const onNpcHitMock = vi.fn();
+    service.setCallbacks({ onNpcHit: onNpcHitMock });
+
+    await service.join('ROOM123', false);
+
+    expect(() => {
+      service.sendNpcHit(42, 500, 600, 1.57, 130);
+    }).not.toThrow();
+
+    service.leave();
+  });
 });

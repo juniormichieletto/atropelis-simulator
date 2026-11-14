@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { GameCanvas } from '../GameCanvas';
+import { getPlayerSpawnPoint } from '../SpawnPoints';
 import { soundService } from '../../../services/SoundService';
 import { LocalStorageService } from '../../../services/LocalStorageService';
 import type { MultiplayerService, MultiplayerEventCallback } from '../../../services/MultiplayerService';
@@ -24,6 +25,8 @@ describe('GameCanvas Multiplayer Mode', () => {
       setCallbacks: vi.fn(),
       sendPlayerUpdate: vi.fn(),
       sendNpcUpdate: vi.fn(),
+      sendHit: vi.fn(),
+      sendNpcHit: vi.fn(),
       broadcastHit: vi.fn(),
       leave: vi.fn(),
       getMySpawnIndex: vi.fn(() => 0),
@@ -263,5 +266,141 @@ describe('GameCanvas Multiplayer Mode', () => {
 
     // Rotate prompt is automatically dismissed
     expect(screen.queryByText('MODO HORIZONTAL')).not.toBeInTheDocument();
+  });
+
+  it('handles remote NPC sync and processes onNpcHit events', () => {
+    let registeredCallbacks: MultiplayerEventCallback | null = null;
+    mockMpService.isHost = false; // Guest client
+    mockMpService.setCallbacks = vi.fn((callbacks) => {
+      registeredCallbacks = callbacks;
+    });
+
+    render(
+      <GameCanvas
+        multiplayerService={mockMpService as MultiplayerService}
+        onGameOver={vi.fn()}
+      />
+    );
+
+    expect(registeredCallbacks).not.toBeNull();
+
+    // Host sends 2 NPCs to the guest
+    act(() => {
+      registeredCallbacks?.onNpcUpdate?.([
+        {
+          id: 101,
+          type: 'CAR',
+          x: 500,
+          y: 850,
+          z: 0,
+          angle: 0,
+          speed: 80,
+          isHit: false,
+          color: '#e74c3c',
+        },
+        {
+          id: 102,
+          type: 'PERSON',
+          x: 520,
+          y: 860,
+          z: 0,
+          angle: 0,
+          speed: 35,
+          isHit: false,
+          color: '#FF9F43',
+        },
+      ]);
+    });
+
+    // Remote hit arrives for NPC 101
+    const playHitSpy = vi.spyOn(soundService, 'playHitSound');
+    act(() => {
+      registeredCallbacks?.onNpcHit?.(101, 'other-player-id', {
+        x: 500,
+        y: 850,
+        angle: 0,
+        speed: 100,
+      });
+    });
+
+    expect(playHitSpy).toHaveBeenCalledWith('CAR');
+
+    // Host updates list with only 1 NPC remaining (101 was destroyed)
+    act(() => {
+      registeredCallbacks?.onNpcUpdate?.([
+        {
+          id: 102,
+          type: 'PERSON',
+          x: 525,
+          y: 860,
+          z: 0,
+          angle: 0,
+          speed: 35,
+          isHit: false,
+          color: '#FF9F43',
+        },
+      ]);
+    });
+  });
+
+  it('awards +20 points and triggers sound/shake when colliding with another player in multiplayer', () => {
+    let animationCallback: ((time: number) => void) | null = null;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      animationCallback = cb;
+      return 1;
+    });
+
+    let registeredCallbacks: MultiplayerEventCallback | null = null;
+    mockMpService.setCallbacks = vi.fn((callbacks) => {
+      registeredCallbacks = callbacks;
+    });
+
+    render(
+      <GameCanvas
+        multiplayerService={mockMpService as MultiplayerService}
+        onGameOver={vi.fn()}
+      />
+    );
+
+    // Initial score is 0
+    expect(screen.getByText(/RANK #1/i)).toBeInTheDocument();
+    expect(screen.getByText(/0 PTS/i)).toBeInTheDocument();
+
+    const spawn = getPlayerSpawnPoint(0, 12345);
+
+    // Spawn a remote peer directly on top of the player's spawn point
+    act(() => {
+      registeredCallbacks?.onRemotePlayerUpdate?.({
+        id: 'peer_target',
+        name: 'RivalRacer',
+        color: '#00e5ff',
+        x: spawn.x,
+        y: spawn.y,
+        angle: spawn.angle,
+        speed: 50,
+        steerVisual: 0,
+        isBraking: false,
+        score: 0,
+        timestamp: Date.now(),
+      });
+    });
+
+    // Run game frames past initial grace cooldown (2.5s: 30 frames x 0.1s = 3.0s)
+    let t = 1000;
+    act(() => {
+      if (animationCallback) {
+        animationCallback(t);
+        for (let i = 0; i < 30; i++) {
+          t += 100;
+          animationCallback(t);
+        }
+      }
+    });
+
+    // Send hit must have been dispatched to peer_target
+    expect(mockMpService.sendHit).toHaveBeenCalledWith('peer_target');
+
+    // Local player score received +20 PTS bonus for bumping rival
+    expect(screen.getByText(/20 PTS/i)).toBeInTheDocument();
   });
 });
