@@ -4,7 +4,7 @@ import { useGameLoop } from './useGameLoop';
 import { PlayerCar } from './PlayerCar';
 import { InputManager } from './InputManager';
 import { TileMap } from './TileMap';
-import { EntityManager, Entity } from './Entities';
+import { EntityManager, Entity, ENTITY_SCALE } from './Entities';
 import { soundService } from '../../services/SoundService';
 import { MultiplayerService, MULTIPLAYER_CAR_COLORS } from '../../services/MultiplayerService';
 import { RemotePlayerManager } from './RemotePlayerManager';
@@ -455,12 +455,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const camX = player.x - cosCam * camDist;
     const camY = player.y - sinCam * camDist;
     const camHeight = 52;
-    const baseHorizonY = Math.floor(H * 0.38);
-    // Lock focalLength so that (player.x, player.y) at depth baseCamDist projects directly onto the car sprite at y = H - 92
-    const carContactY = H - 92;
-    const focalLength = Math.max(320, ((carContactY - baseHorizonY) * baseCamDist) / camHeight);
+    const isLandscapeMobile = H < 520;
+    const baseHorizonY = Math.floor(H * (isLandscapeMobile ? 0.35 : 0.38));
+    // Lock focalLength so that ground contact at baseCamDist projects smoothly onto the player car contact line
+    const carContactY = isLandscapeMobile ? H - 64 : H - 92;
+    const focalLength = Math.max(
+      isLandscapeMobile ? 420 : 320,
+      ((carContactY - baseHorizonY) * baseCamDist) / camHeight
+    );
 
-    return { camAngle, cosCam, sinCam, camDist, camX, camY, camHeight, baseHorizonY, focalLength };
+    return { camAngle, cosCam, sinCam, camDist, camX, camY, camHeight, baseHorizonY, focalLength, isLandscapeMobile };
   };
 
   const update = (dt: number) => {
@@ -538,15 +542,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const canvas = canvasRef.current;
     const W = canvas ? canvas.width : window.innerWidth;
     const H = canvas ? canvas.height : window.innerHeight;
-    const { camAngle, cosCam, sinCam, camX, camY, camHeight, baseHorizonY, focalLength } = getCameraParams(
+    const { camAngle, cosCam, sinCam, camX, camY, camHeight, baseHorizonY, focalLength, isLandscapeMobile } = getCameraParams(
       H,
       player,
       tileMap
     );
 
-    const carScale = Math.max(0.85, Math.min(1.25, W / 900));
+    const carScale = isLandscapeMobile
+      ? Math.max(0.65, Math.min(1.0, H / 500))
+      : Math.max(0.85, Math.min(1.25, W / 900));
     const carScreenX = W * 0.5 + player.steerVisual * 26;
-    const carBottomY = H - 78;
+    const carBottomY = isLandscapeMobile ? H - 52 : H - 78;
     // Visual bumper/fender footprint of the player's car on screen
     const carHalfW = 58 * carScale;
     const carFrontY = carBottomY - 36 * carScale;
@@ -565,18 +571,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const tx = -dx * sinCam + dy * cosCam;
       const entityScreenX = W * 0.5 + (tx / tz) * focalLength;
       const entityScreenY = baseHorizonY + (camHeight / tz) * focalLength;
-      const s = Math.min(focalLength / tz, 10.5);
+      const s = Math.min((focalLength / tz) * ENTITY_SCALE, 28);
       const relAngle = entity.angle - (camAngle + Math.atan2(tx, tz) * 0.55);
       const sideAmt = Math.abs(Math.sin(relAngle));
 
       const entityVisualHalfW =
         entity.type === 'PERSON'
-          ? 1.2 * s
+          ? 1.4 * s
           : entity.type === 'BIKE'
-            ? (1.5 + sideAmt * 2.0) * s
+            ? (1.7 + sideAmt * 2.2) * s
             : entity.type === 'MOTORCYCLE'
-              ? (2.1 + sideAmt * 2.3) * s
-              : (5.5 + sideAmt * 2.8) * s;
+              ? (2.4 + sideAmt * 2.5) * s
+              : (6.0 + sideAmt * 2.8) * s;
 
       // Require both vertical road-contact overlap (front bumper to rear wheels) AND horizontal sprite overlap
       if (

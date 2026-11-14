@@ -3,6 +3,8 @@ export type { Drawable3D };
 
 export type EntityType = 'PERSON' | 'BIKE' | 'MOTORCYCLE' | 'CAR';
 
+export const ENTITY_SCALE = 2.1;
+
 let nextEntityGlobalId = 1;
 
 export interface CarPalette {
@@ -231,6 +233,32 @@ export class Entity {
     ctx.fill();
   }
 
+  getVisualDimensions(scale: number, relAngle: number = 0): { width: number; height: number } {
+    const s = Math.min(scale * ENTITY_SCALE, 28);
+    const side = Math.sin(relAngle);
+    const absSide = Math.abs(side);
+    const isSideOrDiagonal = absSide >= 0.38;
+    const sideFactor = Math.min(1, Math.max(0.55, absSide));
+
+    if (this.type === 'PERSON') {
+      return { width: 2.8 * s, height: 6.6 * s };
+    }
+    if (this.type === 'BIKE') {
+      const bikeH = 7.4 * s;
+      const bikeW = isSideOrDiagonal ? (3.6 + sideFactor * 1.8) * 2 * s : (3.4 + absSide * 4.2) * s;
+      return { width: bikeW, height: bikeH };
+    }
+    if (this.type === 'MOTORCYCLE') {
+      const motoH = 8.0 * s;
+      const motoW = isSideOrDiagonal ? (4.4 + sideFactor * 2.2) * 2 * s : (5.2 + absSide * 5.0) * s;
+      return { width: motoW, height: motoH };
+    }
+    // CAR
+    const carH = isSideOrDiagonal ? 7.2 * s : 7.6 * s;
+    const carW = isSideOrDiagonal ? (6.4 + sideFactor * 3.0) * 2 * s : (6.8 + absSide * 2.0) * 2 * s;
+    return { width: carW, height: carH };
+  }
+
   /**
    * Renders the entity in 3D behind-the-car perspective anchored at its ground shadow (screenX, screenY).
    * Switches between rear/oncoming perspective and sculpted side / 3/4 diagonal profiles based on relAngle.
@@ -242,9 +270,9 @@ export class Entity {
     scale: number,
     relAngle: number
   ) {
-    // Clamp near-camera scale so entities never balloon past the camera plane
-    const s = Math.min(scale, 10.5);
-    if (s < 0.15) return;
+    // Scale entities smoothly according to calibrated 3D world scale and clamp extreme near-camera plane
+    const s = Math.min(scale * ENTITY_SCALE, 28);
+    if (s < 0.2) return;
 
     const side = Math.sin(relAngle); // -1 (moving left) to +1 (moving right)
     const away = Math.cos(relAngle); // +1 (moving away) to -1 (oncoming)

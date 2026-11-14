@@ -1,4 +1,4 @@
-import { Entity } from './Entities';
+import { Entity, ENTITY_SCALE } from './Entities';
 import type { Drawable3D } from './Entities';
 import type { PlayerNetworkData } from '../../services/MultiplayerService';
 import { MULTIPLAYER_CAR_COLORS } from '../../services/MultiplayerService';
@@ -175,7 +175,7 @@ export class RemotePlayerManager {
 
           // 2. Draw Floating Name Tag & Crown above car
           ctx.save();
-          const tagY = screenY - 8.5 * s;
+          const tagY = screenY - 8.5 * s * ENTITY_SCALE;
           const fontSize = Math.max(9, Math.min(13, s * 0.9));
           ctx.font = `bold ${Math.round(fontSize)}px "Press Start 2P", monospace`;
           ctx.textAlign = 'center';

@@ -122,21 +122,35 @@ export class PlayerCar {
   }
 
   /**
+   * Returns current on-screen visual footprint of the car in pixels.
+   */
+  getVisualDimensions(canvasWidth: number, canvasHeight: number): { width: number; height: number; scale: number } {
+    const isLandscapeMobile = canvasHeight < 520;
+    const scale = isLandscapeMobile
+      ? Math.max(0.65, Math.min(1.0, canvasHeight / 500))
+      : Math.max(0.85, Math.min(1.25, canvasWidth / 900));
+    return { width: 164 * scale, height: 72 * scale, scale };
+  }
+
+  /**
    * Renders the player's car in Top Gear 3000 behind-the-car perspective at the bottom center of the screen.
    */
   drawRearView(ctx: CanvasRenderingContext2D, canvasWidth: number, canvasHeight: number) {
     ctx.save();
 
+    const isLandscapeMobile = canvasHeight < 520;
     const steer = this.steerVisual; // -1..+1
     const carCenterX = canvasWidth * 0.5 + steer * 26;
-    const carBottomY = canvasHeight - 78 + this.bounceOffset;
+    const carBottomY = (isLandscapeMobile ? canvasHeight - 52 : canvasHeight - 78) + this.bounceOffset;
 
     ctx.translate(carCenterX, carBottomY);
     // Subtle chassis body roll into the turn
     ctx.rotate(steer * 0.055);
 
-    // Scale car proportionally for mobile/desktop screens
-    const scale = Math.max(0.85, Math.min(1.25, canvasWidth / 900));
+    // Scale car proportionally for mobile landscape and desktop screens
+    const scale = isLandscapeMobile
+      ? Math.max(0.65, Math.min(1.0, canvasHeight / 500))
+      : Math.max(0.85, Math.min(1.25, canvasWidth / 900));
     ctx.scale(scale, scale);
 
     const yaw = steer * 14; // Perspective shift showing left/right flank when turning
