@@ -26,8 +26,9 @@ describe('Entity & EntityManager', () => {
     expect(person.x).toBeGreaterThan(550);
     expect(person.isAlive).toBe(true);
 
-    // Move into building at (550, 350)
-    const colliderEntity = new Entity(548, 350, 'CAR');
+    // Move into building at row 3, col 5 (x: 500..600, y: 300..400)
+    const colliderEntity = new Entity(480, 350, 'CAR');
+    colliderEntity.speed = 300;
     colliderEntity.angle = 0;
     const prevAngle = colliderEntity.angle;
     colliderEntity.update(0.1, map);

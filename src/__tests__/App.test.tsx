@@ -124,4 +124,17 @@ describe('App & GameCanvas Integration', () => {
       vi.restoreAllMocks();
     }
   });
+
+  it('navigates to Multiplayer Lobby from Menu and returns to Menu cleanly', () => {
+    LocalStorageService.saveName('MULTI_RACER');
+    render(<App />);
+
+    expect(screen.getByText(/MULTIPLAYER ONLINE/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByText(/MULTIPLAYER ONLINE/i));
+
+    expect(screen.getByText('CRIAR UMA SALA')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('VOLTAR AO MENU PRINCIPAL'));
+
+    expect(screen.getByText(/START NEW GAME/i)).toBeInTheDocument();
+  });
 });

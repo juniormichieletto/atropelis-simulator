@@ -4,11 +4,16 @@ import { useGameLoop } from './useGameLoop';
 import { PlayerCar } from './PlayerCar';
 import { InputManager } from './InputManager';
 import { TileMap } from './TileMap';
-import { EntityManager } from './Entities';
+import { EntityManager, Entity } from './Entities';
 import { soundService } from '../../services/SoundService';
+import { MultiplayerService, MULTIPLAYER_CAR_COLORS } from '../../services/MultiplayerService';
+import { RemotePlayerManager } from './RemotePlayerManager';
+import { LocalStorageService } from '../../services/LocalStorageService';
 
 interface GameCanvasProps {
   onGameOver: (score: number) => void;
+  multiplayerService?: MultiplayerService;
+  onBackToMenu?: () => void;
 }
 
 interface ScorePopup {
@@ -20,23 +25,39 @@ interface ScorePopup {
   life: number;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
+export interface MpLeaderboardRacer {
+  id: string;
+  name: string;
+  score: number;
+  color: string;
+  isLocal: boolean;
+}
+
+export const GameCanvas: React.FC<GameCanvasProps> = ({
+  onGameOver,
+  multiplayerService,
+  onBackToMenu,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute in seconds
   const [showControls, setShowControls] = useState(true);
-  const [isPaused, setIsPaused] = useState(() => document.hidden);
+  const [isPaused, setIsPaused] = useState(() => (multiplayerService ? false : document.hidden));
+  const [peerCount, setPeerCount] = useState(() => (multiplayerService ? multiplayerService.getConnectedPeers().length : 1));
+  const [mpFinalResults, setMpFinalResults] = useState<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
+  const [liveMpScores, setLiveMpScores] = useState<MpLeaderboardRacer[]>([]);
 
   // Start on a main city road facing East (angle = 0)
   const playerRef = useRef<PlayerCar>(new PlayerCar(450, 850));
   const inputRef = useRef<InputManager | null>(null);
   const tileMapRef = useRef<TileMap>(new TileMap());
   const entityManagerRef = useRef<EntityManager>(new EntityManager());
+  const remotePlayerManagerRef = useRef<RemotePlayerManager>(new RemotePlayerManager());
   const scoreRef = useRef(score);
   const showControlsRef = useRef(showControls);
   const onGameOverRef = useRef(onGameOver);
-  const isPausedRef = useRef(document.hidden);
+  const isPausedRef = useRef(Boolean(!multiplayerService && document.hidden));
   const speedTextRef = useRef<HTMLSpanElement>(null);
   const gearTextRef = useRef<HTMLSpanElement>(null);
   const rpmFillRef = useRef<HTMLDivElement>(null);
@@ -45,17 +66,129 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
   const shakeTimerRef = useRef(0);
   const popupsRef = useRef<ScorePopup[]>([]);
   const nextPopupIdRef = useRef(1);
+  const lastNetworkSendRef = useRef(0);
+  const lastNpcSendRef = useRef(0);
+  const playerHitCooldownRef = useRef(0);
+
+  const refreshMpLeaderboard = () => {
+    if (!multiplayerService) return;
+    const localRacer: MpLeaderboardRacer = {
+      id: multiplayerService.myId,
+      name: multiplayerService.myName,
+      score: scoreRef.current,
+      color: multiplayerService.myColor,
+      isLocal: true,
+    };
+    const remotes: MpLeaderboardRacer[] = Array.from(
+      remotePlayerManagerRef.current.players.values()
+    ).map((p) => ({
+      id: p.id,
+      name: p.name,
+      score: p.score,
+      color: p.color,
+      isLocal: false,
+    }));
+    const sorted = [localRacer, ...remotes].sort((a, b) => b.score - a.score);
+    setLiveMpScores(sorted);
+  };
 
   // Keep refs in sync
-  useEffect(() => { scoreRef.current = score; }, [score]);
+  useEffect(() => {
+    scoreRef.current = score;
+    if (multiplayerService) {
+      refreshMpLeaderboard();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [score, multiplayerService]);
+
   useEffect(() => { showControlsRef.current = showControls; }, [showControls]);
   useEffect(() => { onGameOverRef.current = onGameOver; }, [onGameOver]);
 
+  // Configure multiplayer callbacks and custom car palette if in multiplayer mode
+  useEffect(() => {
+    if (!multiplayerService) return;
+
+    // Apply player's selected car palette
+    const matched = MULTIPLAYER_CAR_COLORS.find(
+      c => c.main.toLowerCase() === multiplayerService.myColor.toLowerCase()
+    );
+    if (matched) {
+      playerRef.current.color = matched.main;
+      playerRef.current.colorDark = matched.dark;
+      playerRef.current.accentColor = matched.accent;
+    }
+
+    multiplayerService.setCallbacks({
+      onPeersUpdated: (peers) => {
+        setPeerCount(peers.length);
+        refreshMpLeaderboard();
+      },
+      onRemotePlayerUpdate: (data) => {
+        remotePlayerManagerRef.current.updateFromNetwork(data);
+        refreshMpLeaderboard();
+      },
+      onNpcUpdate: (npcList) => {
+        if (!multiplayerService.isHost) {
+          const em = entityManagerRef.current;
+          npcList.forEach((n) => {
+            let local = em.entities.find((e) => e.id === n.id);
+            if (!local) {
+              local = new Entity(n.x, n.y, n.type);
+              local.id = n.id;
+              local.color = n.color;
+              em.entities.push(local);
+            }
+            local.x = n.x;
+            local.y = n.y;
+            local.z = n.z;
+            local.angle = n.angle;
+            local.speed = n.speed;
+            local.isHit = n.isHit;
+          });
+        }
+      },
+      onPlayerHit: (hitterId) => {
+        if (hitterId !== multiplayerService.myId) {
+          soundService.playHitSound('CAR');
+          shakeTimerRef.current = 0.2;
+        }
+      },
+    });
+
+    refreshMpLeaderboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [multiplayerService]);
+
   useEffect(() => {
     if (timeLeft <= 0) {
-      onGameOverRef.current(scoreRef.current);
+      if (multiplayerService) {
+        // Collect final standings and save to multiplayer score
+        const localRacer: MpLeaderboardRacer = {
+          id: multiplayerService.myId,
+          name: multiplayerService.myName,
+          score: scoreRef.current,
+          color: multiplayerService.myColor,
+          isLocal: true,
+        };
+        const remotes: MpLeaderboardRacer[] = Array.from(
+          remotePlayerManagerRef.current.players.values()
+        ).map((p) => ({
+          id: p.id,
+          name: p.name,
+          score: p.score,
+          color: p.color,
+          isLocal: false,
+        }));
+        const sorted = [localRacer, ...remotes].sort((a, b) => b.score - a.score);
+        const myRank = sorted.findIndex((p) => p.isLocal) + 1;
+
+        LocalStorageService.saveMultiplayerScore(scoreRef.current, myRank, sorted.length);
+        setMpFinalResults({ rank: myRank, racers: sorted });
+      } else {
+        onGameOverRef.current(scoreRef.current);
+      }
     }
-  }, [timeLeft]);
+  }, [timeLeft, multiplayerService]);
 
   const handleInteraction = (clientX: number) => {
     const canvas = canvasRef.current;
@@ -69,6 +202,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     }
 
     const pauseGame = () => {
+      // In multiplayer mode, NEVER pause! "no modo multiplayer não deveria ter pausa. Acaba o tempo, acabou."
+      if (multiplayerService) return;
       if (isPausedRef.current) return;
       isPausedRef.current = true;
       setIsPaused(true);
@@ -79,6 +214,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
 
     const resumeGame = () => {
+      if (multiplayerService) return;
       if (document.hidden || !isPausedRef.current) return;
       isPausedRef.current = false;
       setIsPaused(false);
@@ -86,6 +222,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     };
 
     const handleVisibilityChange = () => {
+      // In multiplayer mode, NEVER pause on tab switch!
+      if (multiplayerService) return;
       if (document.hidden) {
         pauseGame();
       } else {
@@ -107,7 +245,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
     window.addEventListener('keydown', handleKeyDownDismiss);
 
     const isHudTarget = (target: EventTarget | null) => {
-      return target instanceof Element && Boolean(target.closest('.game-hud') || target.closest('.quit-btn'));
+      return target instanceof Element && Boolean(target.closest('.game-hud') || target.closest('.quit-btn') || target.closest('.mp-results-overlay'));
     };
 
     const handleMouseDown = (e: MouseEvent) => {
@@ -160,15 +298,26 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
 
     soundService.startBackgroundMusic();
 
+    const startTime = Date.now();
     const timer = setInterval(() => {
-      if (isPausedRef.current) return;
-      setTimeLeft(prev => {
-        if (prev <= 1) {
+      if (multiplayerService) {
+        // Wall-clock calculation: immune to background tab throttling!
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const remaining = Math.max(0, 60 - elapsed);
+        setTimeLeft(remaining);
+        if (remaining <= 0) {
           clearInterval(timer);
-          return 0;
         }
-        return prev - 1;
-      });
+      } else {
+        if (isPausedRef.current) return;
+        setTimeLeft(prev => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }
     }, 1000);
 
     const controlsTimer = setTimeout(() => setShowControls(false), 4000);
@@ -193,7 +342,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         inputRef.current = null;
       }
     };
-  }, []);
+  }, [multiplayerService]);
 
   const getCameraParams = (H: number, player: PlayerCar, tileMap: TileMap) => {
     const camAngle = player.angle - player.steerVisual * 0.1;
@@ -365,6 +514,70 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         }
       }
     });
+
+    // Update remote players and network synchronization
+    remotePlayerManagerRef.current.update(dt);
+
+    if (multiplayerService) {
+      if (playerHitCooldownRef.current > 0) {
+        playerHitCooldownRef.current -= dt;
+      }
+
+      // Check collision between local car and remote players
+      const collidedPeer = remotePlayerManagerRef.current.checkCollisionWithPlayer(player.x, player.y, 24);
+      if (collidedPeer && playerHitCooldownRef.current <= 0) {
+        playerHitCooldownRef.current = 0.55;
+        soundService.playHitSound('CAR');
+        shakeTimerRef.current = 0.22;
+        player.speed = -player.speed * 0.45;
+        multiplayerService.sendHit(collidedPeer.id);
+
+        popupsRef.current.push({
+          id: nextPopupIdRef.current++,
+          text: `BUMP: ${collidedPeer.name}!`,
+          color: collidedPeer.color,
+          x: W * 0.5,
+          y: H - 120,
+          life: 1.2,
+        });
+      }
+
+      // 25 Hz local player state broadcast
+      lastNetworkSendRef.current += dt;
+      if (lastNetworkSendRef.current >= 0.04) {
+        lastNetworkSendRef.current = 0;
+        multiplayerService.sendPlayerUpdate({
+          x: player.x,
+          y: player.y,
+          angle: player.angle,
+          speed: player.speed,
+          steerVisual: player.steerVisual,
+          isBraking: player.isBraking,
+          score: scoreRef.current,
+        });
+      }
+
+      // 15 Hz Host NPC broadcast
+      if (multiplayerService.isHost) {
+        lastNpcSendRef.current += dt;
+        if (lastNpcSendRef.current >= 0.065) {
+          lastNpcSendRef.current = 0;
+          multiplayerService.sendNpcUpdate(
+            entityManager.entities.slice(0, 16).map(e => ({
+              id: e.id,
+              type: e.type,
+              x: e.x,
+              y: e.y,
+              z: e.z,
+              angle: e.angle,
+              speed: e.speed,
+              isHit: e.isHit,
+              color: e.color,
+            }))
+          );
+        }
+      }
+    }
   };
 
   const draw = () => {
@@ -419,8 +632,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       focalLength,
       W
     );
+    const remoteDrawables = remotePlayerManagerRef.current.getVisibleDrawables(
+      camX,
+      camY,
+      camAngle,
+      camHeight,
+      horizonY,
+      focalLength,
+      W
+    );
 
-    const allDrawables = [...buildingDrawables, ...entityDrawables];
+    const allDrawables = [...buildingDrawables, ...entityDrawables, ...remoteDrawables];
     allDrawables.sort((a, b) => b.depth - a.depth);
     for (const item of allDrawables) {
       item.draw(ctx);
@@ -458,6 +680,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
       ctx.arc(mapX + e.x * scaleX, mapY + e.y * scaleY, 2, 0, Math.PI * 2);
       ctx.fill();
     });
+
+    // Remote player dots on radar minimap
+    remotePlayerManagerRef.current.drawMinimap(ctx, mapX, mapY, scaleX, scaleY);
 
     // Camera FOV Cone on radar minimap
     const px = mapX + player.x * scaleX;
@@ -547,9 +772,98 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
         </div>
       )}
 
+      {multiplayerService && (
+        <>
+          <div className="mp-hud-banner">
+            <span className="mp-hud-title">ONLINE P2P</span>
+            <span className="mp-hud-code">SALA: {multiplayerService.roomId}</span>
+            <span className="mp-hud-peers">👥 {peerCount}</span>
+          </div>
+
+          <div className="mp-score-leaderboard">
+            <div className="mp-leaderboard-header">PLACAR AO VIVO</div>
+            <div className="mp-leaderboard-list">
+              {liveMpScores.map((racer, idx) => (
+                <div
+                  key={racer.id}
+                  className={`mp-leaderboard-row ${racer.isLocal ? 'is-local' : ''}`}
+                >
+                  <span className="mp-lb-rank">#{idx + 1}</span>
+                  <span className="mp-lb-color" style={{ backgroundColor: racer.color }} />
+                  <span className="mp-lb-name">
+                    {racer.name}{racer.isLocal ? ' (VOCÊ)' : ''}
+                  </span>
+                  <span className="mp-lb-score">{racer.score}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {mpFinalResults && (
+        <div className="mp-results-overlay">
+          <div className="mp-results-card">
+            <h2 className="mp-results-title">FIM DA CORRIDA!</h2>
+            <div className={`mp-results-badge ${mpFinalResults.rank === 1 ? 'gold' : ''}`}>
+              {mpFinalResults.rank === 1 ? '🏆 1º LUGAR! CAMPEÃO!' : `🏁 ${mpFinalResults.rank}º LUGAR`}
+            </div>
+            <p className="mp-results-sub">PLACAR MULTIPLAYER &bull; SALA {multiplayerService?.roomId}</p>
+
+            <table className="mp-final-table">
+              <thead>
+                <tr>
+                  <th>POS</th>
+                  <th>PILOTO</th>
+                  <th>PONTOS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mpFinalResults.racers.map((r, i) => (
+                  <tr key={r.id} className={r.isLocal ? 'highlight-local' : ''}>
+                    <td className="mp-rank-col">#{i + 1}</td>
+                    <td className="mp-name-col">
+                      <span className="mp-lb-color" style={{ backgroundColor: r.color }} />
+                      <span>{r.name} {r.isLocal ? '(VOCÊ)' : ''}</span>
+                    </td>
+                    <td className="mp-score-col">{r.score} PTS</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <button
+              className="mp-leave-btn"
+              onClick={() => {
+                soundService.playUiSound();
+                if (multiplayerService) {
+                  multiplayerService.leave();
+                }
+                if (onBackToMenu) {
+                  onBackToMenu();
+                } else {
+                  onGameOver(score);
+                }
+              }}
+            >
+              VOLTAR AO MENU
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="game-hud bottom">
         <div className="hud-group">
-          <div className="hud-item score">SCORE: {score}</div>
+          {multiplayerService ? (
+            <div className="hud-item score mp-score-hud">
+              <span className="mp-hud-rank-label">
+                RANK #{Math.max(1, liveMpScores.findIndex((r) => r.isLocal) + 1)}
+              </span>
+              <span className="mp-hud-score-val">{score} PTS</span>
+            </div>
+          ) : (
+            <div className="hud-item score">SCORE: {score}</div>
+          )}
           <div className="hud-item speed">
             <div className="tach-row">
               <span ref={gearTextRef} className="gear-badge">G1</span>
@@ -566,10 +880,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onGameOver }) => {
             className="quit-btn"
             onClick={() => {
               soundService.playUiSound();
+              if (multiplayerService) {
+                multiplayerService.leave();
+                if (onBackToMenu) {
+                  onBackToMenu();
+                  return;
+                }
+              }
               onGameOver(score);
             }}
           >
-            ABORT
+            {multiplayerService ? 'SAIR' : 'ABORT'}
           </button>
         </div>
       </div>

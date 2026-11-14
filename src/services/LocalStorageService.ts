@@ -4,8 +4,17 @@ export interface ScoreEntry {
   points: number;
 }
 
+export interface MultiplayerScoreEntry {
+  date: string;
+  name: string;
+  points: number;
+  rank: number;
+  playersCount: number;
+}
+
 const NAME_KEY = 'atropelis_user_name';
 const SCORES_KEY = 'atropelis_scores';
+const MP_SCORES_KEY = 'atropelis_mp_scores';
 
 export const LocalStorageService = {
   saveName(name: string): void {
@@ -45,5 +54,36 @@ export const LocalStorageService = {
 
   clearScores(): void {
     localStorage.removeItem(SCORES_KEY);
-  }
+  },
+
+  saveMultiplayerScore(points: number, rank: number = 1, playersCount: number = 1): void {
+    const name = this.getName() || 'Unknown';
+    const scores = this.getMultiplayerScores();
+    const newEntry: MultiplayerScoreEntry = {
+      date: new Date().toLocaleDateString(),
+      name,
+      points,
+      rank,
+      playersCount,
+    };
+    scores.push(newEntry);
+    scores.sort((a, b) => b.points - a.points);
+    const topScores = scores.slice(0, 100);
+    localStorage.setItem(MP_SCORES_KEY, JSON.stringify(topScores));
+  },
+
+  getMultiplayerScores(): MultiplayerScoreEntry[] {
+    const scoresJson = localStorage.getItem(MP_SCORES_KEY);
+    if (!scoresJson) return [];
+    try {
+      return JSON.parse(scoresJson);
+    } catch (e) {
+      console.error('Failed to parse multiplayer scores from LocalStorage', e);
+      return [];
+    }
+  },
+
+  clearMultiplayerScores(): void {
+    localStorage.removeItem(MP_SCORES_KEY);
+  },
 };

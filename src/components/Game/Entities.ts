@@ -1,8 +1,11 @@
 import type { Drawable3D } from './TileMap';
+export type { Drawable3D };
 
 export type EntityType = 'PERSON' | 'BIKE' | 'MOTORCYCLE' | 'CAR';
 
-interface CarPalette {
+let nextEntityGlobalId = 1;
+
+export interface CarPalette {
   body: string;
   bodyDark: string;
   cabin: string;
@@ -16,6 +19,7 @@ const RIVAL_CAR_PALETTES: CarPalette[] = [
 ];
 
 export class Entity {
+  id: number = nextEntityGlobalId++;
   x: number;
   y: number;
   z: number = 0; // Vertical elevation above ground (for 3D accident launch arc)

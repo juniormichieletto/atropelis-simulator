@@ -21,6 +21,11 @@ export class PlayerCar {
   width: number = 40;
   height: number = 20;
 
+  // Custom Car Livery Palette (defaults to White Top Gear Supercar)
+  color: string = '#ffffff';
+  colorDark: string = '#dce1e7';
+  accentColor: string = '#e74c3c';
+
   // Visual state for behind-the-car 3D view
   steerVisual: number = 0; // Smoothed -1..+1 steering angle for sprite & camera lag
   wheelPhase: number = 0;
@@ -188,8 +193,8 @@ export class PlayerCar {
       ctx.fillRect(32 + yaw * 0.25, -7, 4, flameLen * 0.6);
     }
 
-    // 5. Lower Wide Aerodynamic Body & Side Fenders (White Supercar)
-    ctx.fillStyle = '#dce1e7';
+    // 5. Lower Wide Aerodynamic Body & Side Fenders (Customizable Livery)
+    ctx.fillStyle = this.colorDark;
     ctx.beginPath();
     ctx.moveTo(-82 + yaw * 0.15, -16);
     ctx.lineTo(82 + yaw * 0.15, -16);
@@ -198,8 +203,8 @@ export class PlayerCar {
     ctx.closePath();
     ctx.fill();
 
-    // Main bright white rear fender highlight
-    ctx.fillStyle = '#ffffff';
+    // Main rear fender highlight
+    ctx.fillStyle = this.color;
     ctx.fillRect(-72 + yaw * 0.3, -44, 144, 16);
 
     // Side air intakes visible on flanks
@@ -276,8 +281,8 @@ export class PlayerCar {
     ctx.fillStyle = '#cfd6de';
     ctx.fillRect(-74 + yaw * 0.55, -61, 148, 3);
 
-    // Red racing winglet endplates
-    ctx.fillStyle = '#e74c3c';
+    // Racing winglet endplates
+    ctx.fillStyle = this.accentColor;
     ctx.fillRect(-76 + yaw * 0.55, -70, 6, 14);
     ctx.fillRect(70 + yaw * 0.55, -70, 6, 14);
 

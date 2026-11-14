@@ -1,0 +1,352 @@
+.mp-lobby-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+  font-family: 'Press Start 2P', monospace;
+  box-sizing: border-box;
+  padding: 20px;
+}
+
+.mp-lobby-card {
+  background: rgba(9, 5, 29, 0.94);
+  border: 3px solid #00e5ff;
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.4), inset 0 0 20px rgba(0, 229, 255, 0.15);
+  border-radius: 8px;
+  padding: 30px;
+  max-width: 720px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  backdrop-filter: blur(6px);
+  color: #fff;
+}
+
+.mp-title {
+  color: #ffee55;
+  font-size: 20px;
+  margin: 0 0 8px 0;
+  text-shadow: 0 0 10px #ff2a85, 2px 2px 0 #000;
+  text-align: center;
+}
+
+.mp-subtitle {
+  color: #00e5ff;
+  font-size: 10px;
+  margin: 0 0 22px 0;
+  letter-spacing: 1.5px;
+  text-align: center;
+}
+
+.mp-setup-section,
+.mp-room-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+.mp-color-picker-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: rgba(18, 14, 38, 0.7);
+  padding: 12px 18px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 229, 255, 0.25);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mp-label {
+  font-size: 10px;
+  color: #ffd166;
+}
+
+.mp-color-options {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.mp-color-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mp-color-btn:hover {
+  transform: scale(1.15);
+}
+
+.mp-color-btn.active {
+  transform: scale(1.25);
+  border: 3px solid #ffee55;
+  box-shadow: 0 0 12px #ffee55;
+}
+
+.mp-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  width: 100%;
+}
+
+@media (max-width: 600px) {
+  .mp-actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mp-action-card {
+  background: rgba(19, 15, 42, 0.85);
+  border: 2px solid #3b375e;
+  border-radius: 6px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+}
+
+.mp-action-card h3 {
+  font-size: 12px;
+  color: #00e5ff;
+  margin: 0;
+}
+
+.mp-desc {
+  font-size: 9px;
+  line-height: 1.5;
+  color: #a8a4ce;
+  margin: 0;
+  min-height: 28px;
+}
+
+.mp-input {
+  width: 100%;
+  background: #09051d;
+  border: 2px solid #00e5ff;
+  color: #ffee55;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 13px;
+  padding: 10px;
+  text-align: center;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.mp-input:focus {
+  outline: none;
+  box-shadow: 0 0 10px #00e5ff;
+}
+
+.mp-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.mp-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+}
+
+.mp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary-btn {
+  background: #ff2a85;
+  color: #fff;
+  box-shadow: 0 4px 0 #99124a;
+}
+
+.secondary-btn {
+  background: #00e5ff;
+  color: #09051d;
+  text-shadow: none;
+  font-weight: bold;
+  box-shadow: 0 4px 0 #008fa0;
+}
+
+.back-btn {
+  background: #2a2845;
+  color: #fff;
+  max-width: 320px;
+  box-shadow: 0 3px 0 #18162d;
+}
+
+.mp-room-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 2px solid #2a2845;
+  padding-bottom: 14px;
+}
+
+.mp-room-badge {
+  font-size: 12px;
+  color: #a8a4ce;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mp-room-code {
+  color: #ffee55;
+  font-size: 15px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 8px #ffee55;
+}
+
+.mp-host-badge {
+  background: #ffbe0b;
+  color: #09051d;
+  font-size: 9px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  font-weight: bold;
+}
+
+.mp-copy-btn {
+  background: #211c42;
+  border: 1px solid #00e5ff;
+  color: #00e5ff;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.mp-copy-btn:hover {
+  background: #00e5ff;
+  color: #09051d;
+}
+
+.mp-toast {
+  background: rgba(0, 229, 255, 0.18);
+  border: 1px solid #00e5ff;
+  color: #ffee55;
+  font-size: 9px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mp-players-list-box {
+  width: 100%;
+  background: rgba(18, 14, 38, 0.7);
+  border: 1px solid #3b375e;
+  border-radius: 6px;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.mp-players-list-box h3 {
+  font-size: 11px;
+  color: #00e5ff;
+  margin: 0 0 12px 0;
+}
+
+.mp-peers-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mp-peer-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #141029;
+  border: 1px solid #2d274c;
+  padding: 10px 14px;
+  border-radius: 4px;
+}
+
+.mp-car-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  flex-shrink: 0;
+}
+
+.mp-peer-name {
+  font-size: 10px;
+  color: #fff;
+  flex: 1;
+}
+
+.mp-peer-tag {
+  font-size: 8px;
+  color: #00f5d4;
+  border: 1px solid #00f5d4;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
+.mp-peer-tag.host {
+  color: #ffbe0b;
+  border-color: #ffbe0b;
+}
+
+.mp-lobby-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  align-items: center;
+}
+
+.start-race-btn {
+  background: #ff2a85;
+  color: #fff;
+  font-size: 13px;
+  padding: 16px;
+  box-shadow: 0 4px 0 #99124a;
+}
+
+.leave-btn {
+  background: #3a223c;
+  color: #ff9999;
+  font-size: 9px;
+  max-width: 260px;
+}
+
+.mp-waiting-text {
+  font-size: 9px;
+  color: #ffee55;
+  text-align: center;
+  padding: 12px;
+  line-height: 1.6;
+}

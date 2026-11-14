@@ -8,6 +8,7 @@ interface MenuViewProps {
   onStartGame: () => void;
   onShowScoreboard: () => void;
   onChangeName: () => void;
+  onStartMultiplayer?: () => void;
 }
 
 export const MenuView: React.FC<MenuViewProps> = ({
@@ -15,6 +16,7 @@ export const MenuView: React.FC<MenuViewProps> = ({
   onStartGame,
   onShowScoreboard,
   onChangeName,
+  onStartMultiplayer,
 }) => {
   return (
     <div className="menu-container" style={{ backgroundImage: `url(${backgroundImage})` }}>
@@ -31,6 +33,15 @@ export const MenuView: React.FC<MenuViewProps> = ({
             }}
           >
             START NEW GAME
+          </button>
+          <button
+            className="menu-btn multiplayer-btn"
+            onClick={() => {
+              soundService.playUiSound();
+              onStartMultiplayer?.();
+            }}
+          >
+            MULTIPLAYER ONLINE 🌐
           </button>
           <button
             className="menu-btn scoreboard-btn"
