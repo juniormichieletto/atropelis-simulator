@@ -34,17 +34,16 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     onStartRef.current = onStartMultiplayerGame;
   }, [onStartMultiplayerGame]);
 
-  const joinRoomInternal = async (code: string, color: string) => {
+  const joinRoomInternal = async (code: string) => {
     if (!code || !serviceRef.current) return;
     setIsConnecting(true);
 
     const service = serviceRef.current;
-    service.setCarColor(color);
-
     const ok = await service.join(code, false);
     setIsConnecting(false);
     if (ok) {
       setIsInRoom(true);
+      setSelectedColor(service.myColor);
       setPeers(service.getConnectedPeers());
     }
   };
@@ -57,6 +56,9 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     service.setCallbacks({
       onPeersUpdated: (updatedPeers) => {
         setPeers([...updatedPeers]);
+        if (serviceRef.current) {
+          setSelectedColor(serviceRef.current.myColor);
+        }
       },
       onGameStarted: () => {
         soundService.playUiSound();
@@ -65,7 +67,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     });
 
     if (initialRoomCode) {
-      void joinRoomInternal(initialRoomCode.toUpperCase(), selectedColor);
+      void joinRoomInternal(initialRoomCode.toUpperCase());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userName, initialRoomCode]);
@@ -78,12 +80,12 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     // Generate random 5-char code
     const generated = 'ATRO' + Math.floor(10 + Math.random() * 90);
     const service = serviceRef.current;
-    service.setCarColor(selectedColor);
 
     const ok = await service.join(generated, true);
     setIsConnecting(false);
     if (ok) {
       setIsInRoom(true);
+      setSelectedColor(service.myColor);
       setPeers(service.getConnectedPeers());
     }
   };
@@ -91,7 +93,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   const handleJoinRoom = async (codeToJoin?: string) => {
     soundService.playUiSound();
     const code = (codeToJoin || roomCodeInput).trim().toUpperCase();
-    await joinRoomInternal(code, selectedColor);
+    await joinRoomInternal(code);
   };
 
   const handleLeaveRoom = () => {
@@ -105,7 +107,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   const handleColorChange = (color: string) => {
     soundService.playUiSound();
     setSelectedColor(color);
-    serviceRef.current?.setCarColor(color);
+    serviceRef.current?.setCarColor(color, true);
   };
 
   const handleCopyLink = () => {

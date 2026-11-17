@@ -161,9 +161,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     playerRef.current.angle = spawn.angle;
     playerHitCooldownRef.current = 2.5;
 
-    // Apply player's selected car palette
+    // Apply player's unique auto-selected car palette
+    const playerColor = multiplayerService.getMyColor();
     const matched = MULTIPLAYER_CAR_COLORS.find(
-      c => c.main.toLowerCase() === multiplayerService.myColor.toLowerCase()
+      c => c.main.toLowerCase() === playerColor.toLowerCase()
     );
     if (matched) {
       playerRef.current.color = matched.main;

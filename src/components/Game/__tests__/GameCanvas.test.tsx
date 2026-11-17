@@ -30,6 +30,7 @@ describe('GameCanvas Multiplayer Mode', () => {
       broadcastHit: vi.fn(),
       leave: vi.fn(),
       getPing: vi.fn().mockResolvedValue(42),
+      getMyColor: vi.fn(() => '#ff2a85'),
       getMySpawnIndex: vi.fn(() => 0),
       getSpawnSeed: vi.fn(() => 12345),
     };

@@ -137,4 +137,29 @@ describe('MultiplayerService', () => {
     const targetPing = await service.getPing('peer_1');
     expect(targetPing).toBe(45);
   });
+
+  it('automatically picks a different unique color when peers join or when game starts', async () => {
+    const service = new MultiplayerService('RacerA');
+    await service.join('COLOR_ROOM', true);
+
+    // Initial default color is first palette color
+    expect(service.myColor).toBe(MULTIPLAYER_CAR_COLORS[0].main);
+
+    // Simulate another peer joining with the same color
+    const peer1 = { id: 'peer_1', name: 'RacerB', color: MULTIPLAYER_CAR_COLORS[0].main, isHost: false, isReady: true };
+    (service as unknown as { peers: Map<string, typeof peer1> }).peers.set('peer_1', peer1);
+
+    // Automatic pick selects the next available color
+    const newColor = service.pickUniqueColor();
+    expect(newColor).toBe(MULTIPLAYER_CAR_COLORS[1].main);
+    expect(service.myColor).toBe(MULTIPLAYER_CAR_COLORS[1].main);
+
+    // Host starts game: automatically assigns unique colors to all peers
+    service.startGame();
+    expect(service.colorAssignments[service.myId]).toBeDefined();
+    expect(service.colorAssignments['peer_1']).toBeDefined();
+    expect(service.colorAssignments[service.myId]).not.toBe(service.colorAssignments['peer_1']);
+
+    service.leave();
+  });
 });

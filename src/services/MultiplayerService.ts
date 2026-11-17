@@ -61,8 +61,10 @@ export class MultiplayerService {
   public myColor: string = MULTIPLAYER_CAR_COLORS[0].main;
   public isHost: boolean = false;
   public isConnected: boolean = false;
+  public isColorManuallySelected: boolean = false;
   public spawnSeed: number = 0;
   public peerOrder: string[] = [];
+  public colorAssignments: Record<string, string> = {};
 
   private room: ReturnType<typeof joinRoom> | null = null;
   private peers: Map<string, RoomPeerInfo> = new Map();
@@ -72,7 +74,7 @@ export class MultiplayerService {
   private sendPeerInfoAction: ((data: RoomPeerInfo, recipientPeerId?: string) => void) | null = null;
   private sendPlayerStateAction: ((data: PlayerNetworkData) => void) | null = null;
   private sendNpcStateAction: ((data: NpcNetworkData[]) => void) | null = null;
-  private sendStartGameAction: ((data: { timestamp: number; spawnSeed?: number; peerOrder?: string[] }) => void) | null = null;
+  private sendStartGameAction: ((data: { timestamp: number; spawnSeed?: number; peerOrder?: string[]; colorAssignments?: Record<string, string> }) => void) | null = null;
   private sendHitAction: ((data: { hitterId: string; targetId: string }) => void) | null = null;
   private sendNpcHitAction: ((data: { npcId: number; hitterId: string; x: number; y: number; angle: number; speed: number }) => void) | null = null;
 
@@ -100,7 +102,7 @@ export class MultiplayerService {
         const peerInfoAction = this.room.makeAction<RoomPeerInfo>('peer_info');
         const playerStateAction = this.room.makeAction<PlayerNetworkData>('player_state');
         const npcStateAction = this.room.makeAction<NpcNetworkData[]>('npc_state');
-        const startGameAction = this.room.makeAction<{ timestamp: number; spawnSeed?: number; peerOrder?: string[] }>('start_game');
+        const startGameAction = this.room.makeAction<{ timestamp: number; spawnSeed?: number; peerOrder?: string[]; colorAssignments?: Record<string, string> }>('start_game');
         const hitAction = this.room.makeAction<{ hitterId: string; targetId: string }>('hit_event');
         const npcHitAction = this.room.makeAction<{ npcId: number; hitterId: string; x: number; y: number; angle: number; speed: number }>('npc_hit');
 
@@ -142,6 +144,19 @@ export class MultiplayerService {
         // Receive remote peer info
         peerInfoAction.onMessage((info, { peerId }) => {
           this.peers.set(peerId, { ...info, id: peerId });
+
+          // If the player has not explicitly picked a color manually and there's a collision with another peer,
+          // or on initial peer sync, ensure a unique color is chosen.
+          if (!this.isColorManuallySelected) {
+            const hasConflict = Array.from(this.peers.values()).some(
+              (p) => p.id !== this.myId && p.color.toLowerCase() === this.myColor.toLowerCase()
+            );
+            if (hasConflict) {
+              this.pickUniqueColor();
+              this.broadcastMyInfo();
+            }
+          }
+
           this.notifyPeersUpdated();
         });
 
@@ -164,6 +179,12 @@ export class MultiplayerService {
           }
           if (msg.peerOrder) {
             this.peerOrder = msg.peerOrder;
+          }
+          if (msg.colorAssignments) {
+            this.colorAssignments = msg.colorAssignments;
+            if (msg.colorAssignments[this.myId]) {
+              this.myColor = msg.colorAssignments[this.myId];
+            }
           }
           this.callbacks.onGameStarted?.();
         });
@@ -207,9 +228,32 @@ export class MultiplayerService {
     }
   }
 
-  setCarColor(color: string) {
+  setCarColor(color: string, isManual: boolean = false) {
     this.myColor = color;
+    if (isManual) {
+      this.isColorManuallySelected = true;
+    }
     this.broadcastMyInfo();
+  }
+
+  /**
+   * Automatically picks the first available unique car color not currently taken by peers.
+   */
+  pickUniqueColor(): string {
+    const takenColors = new Set<string>();
+    this.peers.forEach((peer) => {
+      if (peer.color) {
+        takenColors.add(peer.color.toLowerCase());
+      }
+    });
+
+    const available = MULTIPLAYER_CAR_COLORS.find(
+      (c) => !takenColors.has(c.main.toLowerCase())
+    );
+
+    const chosenColor = available ? available.main : MULTIPLAYER_CAR_COLORS[0].main;
+    this.myColor = chosenColor;
+    return chosenColor;
   }
 
   startGame() {
@@ -218,7 +262,25 @@ export class MultiplayerService {
     const spawnSeed = Math.floor(Math.random() * 1000000) + 1;
     this.spawnSeed = spawnSeed;
     this.peerOrder = allPeers;
-    this.sendStartGameAction({ timestamp: Date.now(), spawnSeed, peerOrder: allPeers });
+
+    // Distribute unique colors deterministically based on peerOrder so every racer has a distinct color
+    const colorAssignments: Record<string, string> = {};
+    allPeers.forEach((peerId, index) => {
+      const assigned = MULTIPLAYER_CAR_COLORS[index % MULTIPLAYER_CAR_COLORS.length].main;
+      colorAssignments[peerId] = assigned;
+    });
+
+    if (colorAssignments[this.myId]) {
+      this.myColor = colorAssignments[this.myId];
+    }
+    this.colorAssignments = colorAssignments;
+
+    this.sendStartGameAction({
+      timestamp: Date.now(),
+      spawnSeed,
+      peerOrder: allPeers,
+      colorAssignments,
+    });
     this.callbacks.onGameStarted?.();
   }
 
@@ -228,6 +290,17 @@ export class MultiplayerService {
       : this.getConnectedPeers().map((p) => p.id).sort();
     const idx = list.indexOf(this.myId);
     return idx >= 0 ? idx : 0;
+  }
+
+  getMyColor(): string {
+    if (this.colorAssignments[this.myId]) {
+      return this.colorAssignments[this.myId];
+    }
+    if (this.myColor) {
+      return this.myColor;
+    }
+    const idx = this.getMySpawnIndex();
+    return MULTIPLAYER_CAR_COLORS[idx % MULTIPLAYER_CAR_COLORS.length].main;
   }
 
   getSpawnSeed(): number {
@@ -326,6 +399,7 @@ export class MultiplayerService {
     }
     this.peers.clear();
     this.peerOrder = [];
+    this.colorAssignments = {};
     this.spawnSeed = 0;
     this.isConnected = false;
     this.roomId = '';
