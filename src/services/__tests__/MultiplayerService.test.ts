@@ -13,6 +13,7 @@ vi.mock('trystero', () => {
       onPeerJoin: vi.fn(),
       onPeerLeave: vi.fn(),
       leave: vi.fn(),
+      ping: vi.fn().mockResolvedValue(45),
     })),
   };
 });
@@ -113,5 +114,27 @@ describe('MultiplayerService', () => {
     }).not.toThrow();
 
     service.leave();
+  });
+
+  it('measures ping latency across connected peers', async () => {
+    const service = new MultiplayerService('Pinger');
+    // Not connected yet
+    const nullPing = await service.getPing();
+    expect(nullPing).toBeNull();
+
+    await service.join('PING_ROOM', false);
+    // No remote peers yet
+    expect(await service.getPing()).toBeNull();
+
+    // Simulate remote peer info
+    const info = { id: 'peer_1', name: 'Other', color: '#ff0000', isHost: true, isReady: true };
+    // Trigger onPeersUpdated by mocking peer map
+    (service as unknown as { peers: Map<string, typeof info> }).peers.set('peer_1', info);
+
+    const ping = await service.getPing();
+    expect(ping).toBe(45);
+
+    const targetPing = await service.getPing('peer_1');
+    expect(targetPing).toBe(45);
   });
 });

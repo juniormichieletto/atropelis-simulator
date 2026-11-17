@@ -279,6 +279,38 @@ export class MultiplayerService {
     return list;
   }
 
+  async getPing(targetPeerId?: string): Promise<number | null> {
+    if (!this.room || !this.isConnected) return null;
+    try {
+      if (targetPeerId) {
+        const ms = await this.room.ping(targetPeerId);
+        return typeof ms === 'number' && !isNaN(ms) ? Math.round(ms) : null;
+      }
+
+      // If no specific peer provided, ping remote peers and return average
+      const remotePeerIds = Array.from(this.peers.keys());
+      if (remotePeerIds.length === 0) return null;
+
+      const pings = await Promise.all(
+        remotePeerIds.map(async (id) => {
+          try {
+            const ms = await this.room!.ping(id);
+            return typeof ms === 'number' && !isNaN(ms) ? ms : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      const valid = pings.filter((p): p is number => p !== null);
+      if (valid.length === 0) return null;
+      const sum = valid.reduce((a, b) => a + b, 0);
+      return Math.round(sum / valid.length);
+    } catch {
+      return null;
+    }
+  }
+
   private notifyPeersUpdated() {
     this.callbacks.onPeersUpdated?.(this.getConnectedPeers());
   }

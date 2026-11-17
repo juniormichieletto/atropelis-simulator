@@ -223,6 +223,31 @@
   color: #00f5d4;
 }
 
+.mp-hud-ping {
+  color: #8b8fa3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  padding-left: 10px;
+}
+
+.mp-hud-ping.good {
+  color: #00f5d4; /* Neon Teal */
+  text-shadow: 0 0 6px rgba(0, 245, 212, 0.5);
+}
+
+.mp-hud-ping.medium {
+  color: #ffbe0b; /* Amber */
+  text-shadow: 0 0 6px rgba(255, 190, 11, 0.4);
+}
+
+.mp-hud-ping.poor {
+  color: #ff2a85; /* Neon Pink / Red */
+  text-shadow: 0 0 6px rgba(255, 42, 133, 0.5);
+}
+
 /* Live Multiplayer Leaderboard Widget (Top Left, below room banner) */
 .mp-score-leaderboard {
   position: absolute;

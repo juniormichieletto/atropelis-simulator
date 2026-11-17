@@ -51,6 +51,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [showControls, setShowControls] = useState(true);
   const [isPaused, setIsPaused] = useState(() => (multiplayerService ? false : document.hidden));
   const [peerCount, setPeerCount] = useState(() => (multiplayerService ? multiplayerService.getConnectedPeers().length : 1));
+  const [pingMs, setPingMs] = useState<number | null>(null);
   const [mpFinalResults, setMpFinalResults] = useState<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const mpFinalResultsRef = useRef<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const [liveMpScores, setLiveMpScores] = useState<MpLeaderboardRacer[]>([]);
@@ -439,6 +440,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const controlsTimer = setTimeout(() => setShowControls(false), 4000);
 
+    let pingInterval: ReturnType<typeof setInterval> | null = null;
+    if (multiplayerService) {
+      const updatePing = async () => {
+        const ms = await multiplayerService.getPing();
+        setPingMs(ms);
+      };
+      void updatePing();
+      pingInterval = setInterval(updatePing, 2000);
+    }
+
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', pauseGame);
@@ -456,6 +467,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('touchmove', handleTouchMove);
       window.removeEventListener('touchend', handleTouchEnd);
       clearInterval(timer);
+      if (pingInterval) clearInterval(pingInterval);
       clearTimeout(controlsTimer);
       soundService.stopBackgroundMusic();
       if (inputRef.current) {
@@ -920,6 +932,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             <span className="mp-hud-title">ONLINE P2P</span>
             <span className="mp-hud-code">SALA: {multiplayerService.roomId}</span>
             <span className="mp-hud-peers">👥 {peerCount}</span>
+            <span
+              className={`mp-hud-ping ${
+                pingMs === null ? '' : pingMs < 80 ? 'good' : pingMs < 160 ? 'medium' : 'poor'
+              }`}
+              title="Latência da conexão P2P (Round-Trip Time)"
+            >
+              📶 {pingMs !== null ? `${pingMs}ms` : '--'}
+            </span>
           </div>
 
           <div className="mp-score-leaderboard">

@@ -29,6 +29,7 @@ describe('GameCanvas Multiplayer Mode', () => {
       sendNpcHit: vi.fn(),
       broadcastHit: vi.fn(),
       leave: vi.fn(),
+      getPing: vi.fn().mockResolvedValue(42),
       getMySpawnIndex: vi.fn(() => 0),
       getSpawnSeed: vi.fn(() => 12345),
     };
@@ -53,6 +54,7 @@ describe('GameCanvas Multiplayer Mode', () => {
     expect(screen.getByText(/SPEED_DEVIL \(VOCÊ\)/i)).toBeInTheDocument();
     expect(screen.getByText(/RANK #1/i)).toBeInTheDocument();
     expect(screen.getByText('SAIR')).toBeInTheDocument();
+    expect(screen.getByText(/📶/)).toBeInTheDocument();
   });
 
   it('NEVER pauses on blur or visibilitychange when in multiplayer mode', () => {
