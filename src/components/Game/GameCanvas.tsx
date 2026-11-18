@@ -569,10 +569,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       autoAccelerate: !showControlsRef.current,
     });
 
+    // Shallow water drag: allow driving through water at reduced speed (~45% maxSpeed)
+    if (tileMap.isWater(player.x, player.y)) {
+      const maxWaterSpeed = player.maxSpeed * 0.45;
+      player.speed *= Math.pow(0.25, dt);
+      if (player.speed > maxWaterSpeed) {
+        player.speed = maxWaterSpeed;
+      } else if (player.speed < -maxWaterSpeed * 0.6) {
+        player.speed = -maxWaterSpeed * 0.6;
+      }
+    }
+
     // Update continuous Top Gear 3000 engine sound & 5-speed transmission pitch
     soundService.updateEngineSound(player.speed, player.steerVisual, player.isBraking);
 
-    // Wall (Building / Water) Hull Collision with tight 7px hull matching the 3D car body
+    // Building Wall Hull Collision with tight 7px hull matching the 3D car body
     const hullRadius = 7;
     if (tileMap.isColliding(player.x, player.y, hullRadius)) {
       const collisionForce = Math.abs(player.speed);

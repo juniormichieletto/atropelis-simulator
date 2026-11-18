@@ -18,7 +18,7 @@ describe('TileMap', () => {
     expect(map.grid[21][23]).toBe('WATER');
   });
 
-  it('detects collisions accurately for buildings, water, and map boundaries', () => {
+  it('detects collisions accurately for buildings, water passability, and map boundaries', () => {
     const map = new TileMap();
 
     // Out of bounds collides
@@ -30,8 +30,12 @@ describe('TileMap', () => {
     // Building tile (row 3, col 5 -> x=550, y=350) collides
     expect(map.isColliding(550, 350)).toBe(true);
 
-    // Water tile (row 21, col 23 -> x=2350, y=2150) collides
-    expect(map.isColliding(2350, 2150)).toBe(true);
+    // Water tile (row 21, col 23 -> x=2350, y=2150) is passable (not a wall) and detected via isWater
+    expect(map.isColliding(2350, 2150)).toBe(false);
+    expect(map.isColliding(2350, 2150, 7)).toBe(false);
+    expect(map.isWater(2350, 2150)).toBe(true);
+    expect(map.isWater(550, 850)).toBe(false);
+    expect(map.isWater(-10, -10)).toBe(false);
 
     // Road tile (row 8, col 5 -> x=550, y=850) does not collide
     expect(map.isColliding(550, 850)).toBe(false);

@@ -3,6 +3,18 @@ export type { Drawable3D };
 
 export type EntityType = 'PERSON' | 'BIKE' | 'MOTORCYCLE' | 'CAR';
 
+export interface EntityTileMapBounds {
+  isColliding: (x: number, y: number) => boolean;
+  isWater?: (x: number, y: number) => boolean;
+  rows: number;
+  cols: number;
+  tileSize: number;
+}
+
+function isBlockedForEntity(tileMap: EntityTileMapBounds, x: number, y: number): boolean {
+  return tileMap.isColliding(x, y) || Boolean(tileMap.isWater?.(x, y));
+}
+
 /**
  * 🔒 REGRA ESTRITA DE DESIGN (DIMENSION & SCALE FREEZE - NÃO ALTERAR):
  * O valor ENTITY_SCALE = 2.1 foi rigorosamente calibrado e aprovado pelo usuário
@@ -151,7 +163,7 @@ export class Entity {
 
   update(
     dt: number,
-    tileMap?: { isColliding: (x: number, y: number) => boolean; rows: number; cols: number; tileSize: number }
+    tileMap?: EntityTileMapBounds
   ) {
     if (this.isHit) {
       this.hitTimer += dt;
@@ -194,7 +206,7 @@ export class Entity {
       }
 
       // Building/Water Collision for NPCs - snap to 90° street grid before turning
-      if (tileMap.isColliding(this.x, this.y)) {
+      if (isBlockedForEntity(tileMap, this.x, this.y)) {
         this.x = oldX;
         this.y = oldY;
         this.turnNinetyDegrees();
@@ -1182,7 +1194,7 @@ export class EntityManager {
    */
   initMultiplayer(
     initialCount: number = 40,
-    tileMap?: { isColliding: (x: number, y: number) => boolean; rows: number; cols: number; tileSize: number }
+    tileMap?: EntityTileMapBounds
   ) {
     this.allowRespawn = false;
     this.entities = [];
@@ -1199,7 +1211,7 @@ export class EntityManager {
       const x = 360 + Math.random() * Math.max(100, mapW - 720);
       const y = 360 + Math.random() * Math.max(100, mapH - 720);
 
-      if (tileMap && tileMap.isColliding(x, y)) {
+      if (tileMap && isBlockedForEntity(tileMap, x, y)) {
         continue;
       }
 
@@ -1215,7 +1227,7 @@ export class EntityManager {
     dt: number,
     playerX: number,
     playerY: number,
-    tileMap?: { isColliding: (x: number, y: number) => boolean; rows: number; cols: number; tileSize: number },
+    tileMap?: EntityTileMapBounds,
     playerAngle: number = 0
   ) {
     if (this.allowRespawn) {
@@ -1225,8 +1237,10 @@ export class EntityManager {
         return e.isAlive && dist < this.spawnRange + 250;
       });
 
-      // Spawn new entities if needed
-      while (this.entities.length < this.maxEntities) {
+      // Spawn new entities if needed (bounded to avoid infinite loop if area is blocked)
+      let spawnTries = 0;
+      while (this.entities.length < this.maxEntities && spawnTries < this.maxEntities) {
+        spawnTries++;
         this.spawnEntity(playerX, playerY, tileMap, playerAngle);
       }
     } else {
@@ -1241,7 +1255,7 @@ export class EntityManager {
   spawnEntity(
     playerX: number,
     playerY: number,
-    tileMap?: { isColliding: (x: number, y: number) => boolean; rows: number; cols: number; tileSize: number },
+    tileMap?: EntityTileMapBounds,
     playerAngle: number = 0
   ) {
     let x = playerX;
@@ -1262,11 +1276,11 @@ export class EntityManager {
       attempts++;
     } while (
       tileMap &&
-      (x < 20 || x > mapW - 20 || y < 20 || y > mapH - 20 || tileMap.isColliding(x, y)) &&
+      (x < 20 || x > mapW - 20 || y < 20 || y > mapH - 20 || isBlockedForEntity(tileMap, x, y)) &&
       attempts < 15
     );
 
-    if (tileMap && tileMap.isColliding(x, y)) return;
+    if (tileMap && isBlockedForEntity(tileMap, x, y)) return;
 
     const types: EntityType[] = ['PERSON', 'PERSON', 'PERSON', 'BIKE', 'BIKE', 'MOTORCYCLE', 'CAR', 'CAR'];
     const type = types[Math.floor(Math.random() * types.length)];

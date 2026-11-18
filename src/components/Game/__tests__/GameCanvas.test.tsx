@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { GameCanvas } from '../GameCanvas';
+import { EntityManager } from '../Entities';
+import { TileMap } from '../TileMap';
 import { getPlayerSpawnPoint } from '../SpawnPoints';
 import { soundService } from '../../../services/SoundService';
 import { LocalStorageService } from '../../../services/LocalStorageService';
@@ -349,6 +351,7 @@ describe('GameCanvas Multiplayer Mode', () => {
   });
 
   it('awards +20 points and triggers sound/shake when colliding with another player in multiplayer', () => {
+    vi.spyOn(EntityManager.prototype, 'initMultiplayer').mockImplementation(() => {});
     let animationCallback: ((time: number) => void) | null = null;
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
       animationCallback = cb;
@@ -409,6 +412,11 @@ describe('GameCanvas Multiplayer Mode', () => {
     });
 
     // Step two frames so the collision triggers regardless of rAF re-registration
+    const scoreBeforeHit = parseInt(
+      screen.getByText(/PTS/i).textContent?.replace(/[^-\d]/g, '') || '0',
+      10
+    );
+
     act(() => {
       if (animationCallback) {
         t += 100;
@@ -422,7 +430,8 @@ describe('GameCanvas Multiplayer Mode', () => {
     expect(mockMpService.sendHit).toHaveBeenCalledWith('peer_target');
 
     // Local player score received +20 PTS bonus for bumping rival
-    expect(screen.getByText(/20 PTS/i)).toBeInTheDocument();
+    const expectedScore = scoreBeforeHit + 20;
+    expect(screen.getByText(new RegExp(`${expectedScore} PTS`, 'i'))).toBeInTheDocument();
   });
 
   it('only plays hit sound for onPlayerHit when local player is the target and skips controls overlay in multiplayer', () => {
@@ -490,5 +499,40 @@ describe('GameCanvas Multiplayer Mode', () => {
     fireEvent.click(screen.getByRole('button', { name: 'ABORT' }));
     expect(onBackToMenuMock).toHaveBeenCalledTimes(1);
     expect(onGameOverMock).not.toHaveBeenCalled();
+  });
+
+  it('allows driving through water at reduced speed without triggering a wall hit', () => {
+    let animationCallback: ((time: number) => void) | null = null;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      animationCallback = cb;
+      return 1;
+    });
+    const playHitSpy = vi.spyOn(soundService, 'playHitSound');
+    vi.spyOn(TileMap.prototype, 'isWater').mockReturnValue(true);
+
+    const { container } = render(<GameCanvas onGameOver={vi.fn()} />);
+
+    // Dismiss controls overlay so auto-accelerate activates
+    fireEvent.keyDown(window, { code: 'KeyW', key: 'w' });
+
+    let t = 1000;
+    act(() => {
+      if (animationCallback) {
+        animationCallback(t);
+        for (let i = 0; i < 30; i++) {
+          t += 100;
+          animationCallback(t);
+        }
+      }
+    });
+
+    // Wall hit sound must never fire solely from being on water
+    expect(playHitSpy).not.toHaveBeenCalledWith('WALL');
+
+    // Speed on HUD must stay capped at <= 45% of cruising speed (~44 KM/H)
+    const speedSpan = container.querySelector('.hud-item.speed .tach-row span:last-child');
+    const kmh = parseInt(speedSpan?.textContent || '0', 10);
+    expect(kmh).toBeGreaterThan(0);
+    expect(kmh).toBeLessThanOrEqual(45);
   });
 });

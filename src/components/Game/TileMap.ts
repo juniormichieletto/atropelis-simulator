@@ -201,13 +201,59 @@ export class TileMap {
             break;
           }
           case 'WATER': {
-            // Synthwave night ocean reflecting neon magenta & cyan sky
-            ctx.fillStyle = '#0a1128';
+            // Lagoon / coastal water with organic currents, staggered wave ripples, and shoreline
+            ctx.fillStyle = '#0a5c8f';
             ctx.fillRect(x, y, this.tileSize, this.tileSize);
-            ctx.fillStyle = '#00e5ff';
-            ctx.fillRect(x + 10, y + 20, this.tileSize - 20, 6);
-            ctx.fillStyle = '#ff2a85';
-            ctx.fillRect(x + 24, y + 60, this.tileSize - 48, 6);
+
+            // Deeper water currents & mid-tone turquoise bands (staggered across adjacent tiles)
+            ctx.fillStyle = '#07446b';
+            const bandOffset = ((r + c) % 2) * 18;
+            ctx.fillRect(x, y + 12 + (bandOffset % 12), this.tileSize, 14);
+            ctx.fillRect(x, y + 62 - (bandOffset % 10), this.tileSize, 14);
+
+            ctx.fillStyle = '#0e74ad';
+            ctx.fillRect(x, y + 36, this.tileSize, 10);
+
+            // Staggered wavy water ripples & sunlit foam highlights
+            for (let i = 0; i < 3; i++) {
+              const rx = x + ((r * 29 + c * 43 + i * 31) % (this.tileSize - 36));
+              const ry = y + 10 + i * 30 + ((r + c + i) % 2) * 6;
+              ctx.fillStyle = i % 2 === 0 ? '#2ec4db' : '#72efdd';
+              ctx.fillRect(rx, ry, 28, 5);
+              ctx.fillStyle = 'rgba(224, 251, 252, 0.7)';
+              ctx.fillRect(rx + 6, ry - 2, 14, 4);
+            }
+
+            // Shallow aqua shelf + sandy/stone bank along outer shoreline edges
+            const shallowColor = '#38bdf8';
+            const bankColor = '#c29b61';
+            const shallowW = 10;
+            const bankW = 4;
+
+            if (r > 0 && this.grid[r - 1][c] !== 'WATER') {
+              ctx.fillStyle = shallowColor;
+              ctx.fillRect(x, y, this.tileSize, shallowW);
+              ctx.fillStyle = bankColor;
+              ctx.fillRect(x, y, this.tileSize, bankW);
+            }
+            if (r < this.rows - 1 && this.grid[r + 1][c] !== 'WATER') {
+              ctx.fillStyle = shallowColor;
+              ctx.fillRect(x, y + this.tileSize - shallowW, this.tileSize, shallowW);
+              ctx.fillStyle = bankColor;
+              ctx.fillRect(x, y + this.tileSize - bankW, this.tileSize, bankW);
+            }
+            if (c > 0 && this.grid[r][c - 1] !== 'WATER') {
+              ctx.fillStyle = shallowColor;
+              ctx.fillRect(x, y, shallowW, this.tileSize);
+              ctx.fillStyle = bankColor;
+              ctx.fillRect(x, y, bankW, this.tileSize);
+            }
+            if (c < this.cols - 1 && this.grid[r][c + 1] !== 'WATER') {
+              ctx.fillStyle = shallowColor;
+              ctx.fillRect(x + this.tileSize - shallowW, y, shallowW, this.tileSize);
+              ctx.fillStyle = bankColor;
+              ctx.fillRect(x + this.tileSize - bankW, y, bankW, this.tileSize);
+            }
             break;
           }
           case 'SAND': {
@@ -825,7 +871,7 @@ export class TileMap {
       const col = Math.floor(x / this.tileSize);
       const row = Math.floor(y / this.tileSize);
       if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return true;
-      return this.grid[row][col] === 'BUILDING' || this.grid[row][col] === 'WATER';
+      return this.grid[row][col] === 'BUILDING';
     }
 
     // Check bounding points around (x, y) for physical hull collision
@@ -845,10 +891,19 @@ export class TileMap {
       const col = Math.floor((x + ox) / this.tileSize);
       const row = Math.floor((y + oy) / this.tileSize);
       if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return true;
-      const cell = this.grid[row][col];
-      if (cell === 'BUILDING' || cell === 'WATER') return true;
+      if (this.grid[row][col] === 'BUILDING') return true;
     }
     return false;
+  }
+
+  /**
+   * Returns true when world coordinates (x, y) are inside a water tile.
+   */
+  isWater(x: number, y: number): boolean {
+    const col = Math.floor(x / this.tileSize);
+    const row = Math.floor(y / this.tileSize);
+    if (row < 0 || row >= this.rows || col < 0 || col >= this.cols) return false;
+    return this.grid[row][col] === 'WATER';
   }
 
   private renderMinimapTiles(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
@@ -869,7 +924,7 @@ export class TileMap {
           case 'ROAD': ctx.fillStyle = '#3d3963'; break;
           case 'BUILDING': ctx.fillStyle = '#323049'; break;
           case 'GRASS': ctx.fillStyle = '#152e28'; break;
-          case 'WATER': ctx.fillStyle = '#17365d'; break;
+          case 'WATER': ctx.fillStyle = '#0ea5e9'; break;
           case 'SAND': ctx.fillStyle = '#36193b'; break;
           case 'SIDEWALK': ctx.fillStyle = '#26243d'; break;
           default: ctx.fillStyle = '#151525';
