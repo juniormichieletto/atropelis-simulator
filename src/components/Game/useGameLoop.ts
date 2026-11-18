@@ -7,6 +7,13 @@ export const useGameLoop = (
 ) => {
   const requestRef = useRef<number>(0);
   const previousTimeRef = useRef<number | null>(null);
+  const updateRef = useRef(update);
+  const drawRef = useRef(draw);
+
+  useEffect(() => {
+    updateRef.current = update;
+    drawRef.current = draw;
+  });
 
   useEffect(() => {
     if (isPaused) {
@@ -18,8 +25,8 @@ export const useGameLoop = (
     const animate = (time: number) => {
       if (previousTimeRef.current !== null) {
         const dt = Math.min((time - previousTimeRef.current) / 1000, 0.1); // in seconds, clamped to avoid tab-switch spikes
-        update(dt);
-        draw();
+        updateRef.current(dt);
+        drawRef.current();
       }
       previousTimeRef.current = time;
       requestRef.current = requestAnimationFrame(animate);
@@ -27,5 +34,5 @@ export const useGameLoop = (
 
     requestRef.current = requestAnimationFrame(animate);
     return () => cancelAnimationFrame(requestRef.current);
-  }, [update, draw, isPaused]);
+  }, [isPaused]);
 };

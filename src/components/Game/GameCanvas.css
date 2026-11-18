@@ -485,6 +485,7 @@ tr.is-disconnected {
   pointer-events: auto;
 }
 
+.mute-btn,
 .orientation-btn {
   background-color: #8e44ad;
   color: #fff;
@@ -500,10 +501,20 @@ tr.is-disconnected {
   justify-content: center;
 }
 
+.mute-btn {
+  background-color: #102a43;
+  border-color: #00e5ff;
+}
+
+.mute-btn:hover {
+  background-color: #0077b6;
+}
+
 .orientation-btn:hover {
   background-color: #be2edd;
 }
 
+.mute-btn:active,
 .orientation-btn:active {
   transform: scale(0.95);
 }
@@ -602,6 +613,7 @@ tr.is-disconnected {
   .rpm-bar-track {
     height: 4px;
   }
+  .mute-btn,
   .orientation-btn,
   .quit-btn {
     padding: 6px 10px;

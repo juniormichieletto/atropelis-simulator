@@ -66,13 +66,19 @@ describe('TileMap', () => {
     }
   });
 
-  it('renders the radar minimap and returns scale factors', () => {
+  it('renders the radar minimap using cached offscreen buffer and returns scale factors', () => {
     const map = new TileMap();
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
+    const drawImageSpy = vi.spyOn(ctx, 'drawImage');
 
     const { scaleX, scaleY } = map.drawMinimap(ctx, 10, 10, 150, 150);
     expect(scaleX).toBeCloseTo(150 / 3000);
     expect(scaleY).toBeCloseTo(150 / 2500);
+    expect(drawImageSpy).toHaveBeenCalledTimes(1);
+
+    // Calling again at same dimensions reuses cached minimap surface
+    map.drawMinimap(ctx, 10, 10, 150, 150);
+    expect(drawImageSpy).toHaveBeenCalledTimes(2);
   });
 });

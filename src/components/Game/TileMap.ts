@@ -41,6 +41,11 @@ export class TileMap {
   private readonly mode7W: number = 360;
   private readonly mode7H: number = 150;
 
+  // Cached static minimap grid canvas
+  private minimapCanvas: HTMLCanvasElement | null = null;
+  private minimapCachedW: number = 0;
+  private minimapCachedH: number = 0;
+
   constructor() {
     this.mode7Canvas = document.createElement('canvas');
     this.mode7Canvas.width = this.mode7W;
@@ -846,9 +851,7 @@ export class TileMap {
     return false;
   }
 
-  drawMinimap(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
-    const scaleX = width / (this.cols * this.tileSize);
-    const scaleY = height / (this.rows * this.tileSize);
+  private renderMinimapTiles(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
     const tileW = width / this.cols;
     const tileH = height / this.rows;
 
@@ -873,6 +876,34 @@ export class TileMap {
         }
         ctx.fillRect(tx, ty, tileW + 0.5, tileH + 0.5);
       }
+    }
+  }
+
+  private getMinimapCache(width: number, height: number): HTMLCanvasElement | null {
+    if (!this.minimapCanvas) {
+      this.minimapCanvas = document.createElement('canvas');
+    }
+    if (this.minimapCachedW !== width || this.minimapCachedH !== height) {
+      this.minimapCanvas.width = width;
+      this.minimapCanvas.height = height;
+      const cacheCtx = this.minimapCanvas.getContext('2d');
+      if (!cacheCtx) return null;
+      this.renderMinimapTiles(cacheCtx, 0, 0, width, height);
+      this.minimapCachedW = width;
+      this.minimapCachedH = height;
+    }
+    return this.minimapCanvas;
+  }
+
+  drawMinimap(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
+    const scaleX = width / (this.cols * this.tileSize);
+    const scaleY = height / (this.rows * this.tileSize);
+
+    const cache = this.getMinimapCache(width, height);
+    if (cache && typeof ctx.drawImage === 'function') {
+      ctx.drawImage(cache, x, y, width, height);
+    } else {
+      this.renderMinimapTiles(ctx, x, y, width, height);
     }
 
     // Neon Cyan Radar Border

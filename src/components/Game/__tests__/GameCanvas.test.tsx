@@ -37,6 +37,8 @@ describe('GameCanvas Multiplayer Mode', () => {
   });
 
   afterEach(() => {
+    soundService.setMuted(false);
+    localStorage.clear();
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -451,5 +453,42 @@ describe('GameCanvas Multiplayer Mode', () => {
       registeredCallbacks?.onPlayerHit?.('peer_a', 'local-pilot-id');
     });
     expect(playHitSpy).toHaveBeenCalledWith('CAR');
+  });
+
+  it('toggles audio mute button, supports 2-finger touch braking, and aborts solo runs without saving score', () => {
+    const onGameOverMock = vi.fn();
+    const onBackToMenuMock = vi.fn();
+
+    render(<GameCanvas onGameOver={onGameOverMock} onBackToMenu={onBackToMenuMock} />);
+
+    // 1. Mute button toggles between unmuted and muted
+    const muteBtn = screen.getByRole('button', { name: /Alternar Áudio/i });
+    expect(muteBtn.textContent).toBe('🔊');
+    fireEvent.click(muteBtn);
+    expect(muteBtn.textContent).toBe('🔇');
+    expect(soundService.isMuted()).toBe(true);
+    fireEvent.click(muteBtn);
+    expect(muteBtn.textContent).toBe('🔊');
+    expect(soundService.isMuted()).toBe(false);
+
+    // 2. Two-finger touch braking triggers without errors and clears on touchEnd
+    fireEvent.touchStart(window, {
+      touches: [
+        { clientX: 200, clientY: 300 },
+        { clientX: 600, clientY: 300 },
+      ],
+    });
+    fireEvent.touchMove(window, {
+      touches: [
+        { clientX: 220, clientY: 300 },
+        { clientX: 620, clientY: 300 },
+      ],
+    });
+    fireEvent.touchEnd(window, { touches: [] });
+
+    // 3. ABORT returns to menu via onBackToMenu without invoking onGameOver
+    fireEvent.click(screen.getByRole('button', { name: 'ABORT' }));
+    expect(onBackToMenuMock).toHaveBeenCalledTimes(1);
+    expect(onGameOverMock).not.toHaveBeenCalled();
   });
 });

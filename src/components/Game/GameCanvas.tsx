@@ -56,6 +56,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const mpFinalResultsRef = useRef<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const [liveMpScores, setLiveMpScores] = useState<MpLeaderboardRacer[]>([]);
   const [showRotatePrompt, setShowRotatePrompt] = useState(false);
+  const [isMuted, setIsMuted] = useState(() => soundService.isMuted());
+
+  const handleToggleMute = () => {
+    const nextMuted = soundService.toggleMute();
+    setIsMuted(nextMuted);
+    if (!nextMuted) {
+      soundService.playUiSound();
+    }
+  };
 
   const handleToggleOrientation = async () => {
     soundService.playUiSound();
@@ -102,6 +111,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const lastNetworkSendRef = useRef(0);
   const lastNpcSendRef = useRef(0);
   const playerHitCooldownRef = useRef(multiplayerService ? 2.5 : 0);
+  const comboCountRef = useRef(0);
+  const comboTimerRef = useRef(0);
 
   const refreshMpLeaderboard = () => {
     if (!multiplayerService) return;
@@ -182,8 +193,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         refreshMpLeaderboard();
       },
       onRemotePlayerUpdate: (data) => {
+        const prev = remotePlayerManagerRef.current.players.get(data.id);
+        const shouldRefresh = !prev || prev.isDisconnected || prev.score !== data.score;
         remotePlayerManagerRef.current.updateFromNetwork(data);
-        refreshMpLeaderboard();
+        if (shouldRefresh) {
+          refreshMpLeaderboard();
+        }
       },
       onNpcUpdate: (npcList) => {
         if (!multiplayerService.isHost) {
@@ -359,6 +374,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       return target instanceof Element && Boolean(
         target.closest('.game-hud') ||
         target.closest('.quit-btn') ||
+        target.closest('.mute-btn') ||
         target.closest('.orientation-btn') ||
         target.closest('.rotate-prompt-overlay') ||
         target.closest('.mp-results-overlay')
@@ -385,11 +401,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       playerRef.current.clearTarget();
     };
 
+    const syncTouchBrake = (touches: TouchList) => {
+      const isTwoFingerBrake = touches.length >= 2;
+      inputRef.current?.setManualInput({
+        forward: false,
+        backward: isTwoFingerBrake,
+        left: false,
+        right: false,
+      });
+    };
+
     const handleTouchStart = (e: TouchEvent) => {
       if (mpFinalResultsRef.current) return;
       resumeGame();
       if (isHudTarget(e.target)) return;
       isPointerDownRef.current = true;
+      syncTouchBrake(e.touches);
       if (e.touches[0]) {
         handleInteraction(e.touches[0].clientX);
       }
@@ -397,14 +424,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
     const handleTouchMove = (e: TouchEvent) => {
       if (mpFinalResultsRef.current) return;
+      syncTouchBrake(e.touches);
       if (isPointerDownRef.current && e.touches[0]) {
         handleInteraction(e.touches[0].clientX);
       }
     };
 
-    const handleTouchEnd = () => {
-      isPointerDownRef.current = false;
-      playerRef.current.clearTarget();
+    const handleTouchEnd = (e: TouchEvent) => {
+      syncTouchBrake(e.touches);
+      if (e.touches.length === 0) {
+        isPointerDownRef.current = false;
+        playerRef.current.clearTarget();
+      } else if (e.touches[0]) {
+        handleInteraction(e.touches[0].clientX);
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -578,9 +611,16 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
 
-    // Update screen shake timer & floating score popups
+    // Update screen shake timer, combo decay & floating score popups
     if (shakeTimerRef.current > 0) {
       shakeTimerRef.current = Math.max(0, shakeTimerRef.current - dt);
+    }
+
+    if (comboTimerRef.current > 0) {
+      comboTimerRef.current = Math.max(0, comboTimerRef.current - dt);
+      if (comboTimerRef.current === 0) {
+        comboCountRef.current = 0;
+      }
     }
 
     popupsRef.current.forEach(p => {
@@ -641,7 +681,22 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         Math.abs(entityScreenX - carScreenX) <= carHalfW + entityVisualHalfW
       ) {
         // Hit! Launch entity into 3D accident flight right from the front bumper
-        setScore(prev => prev + entity.points);
+        let totalPoints = entity.points;
+        let popupText = `${entity.points > 0 ? '+' : ''}${entity.points} PTS`;
+        if (entity.points > 0) {
+          comboCountRef.current += 1;
+          comboTimerRef.current = 2.5;
+          if (comboCountRef.current >= 2) {
+            const comboBonus = Math.min(3, comboCountRef.current - 1);
+            totalPoints += comboBonus;
+            popupText = `+${totalPoints} PTS (x${comboCountRef.current})`;
+          }
+        } else if (entity.type === 'CAR') {
+          comboCountRef.current = 0;
+          comboTimerRef.current = 0;
+        }
+
+        setScore(prev => prev + totalPoints);
         entity.triggerHit(player.x, player.y, player.angle, player.speed);
         soundService.playHitSound(entity.type);
         shakeTimerRef.current = entity.type === 'CAR' ? 0.22 : 0.1;
@@ -651,11 +706,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
 
         if (canvas) {
-          const sign = entity.points > 0 ? '+' : '';
           popupsRef.current.push({
             id: nextPopupIdRef.current++,
-            text: `${sign}${entity.points} PTS`,
-            color: entity.points > 0 ? '#00e5ff' : '#ff2a85',
+            text: popupText,
+            color: entity.points > 0 ? (comboCountRef.current >= 2 ? '#ffbe0b' : '#00e5ff') : '#ff2a85',
             x: entityScreenX,
             y: carFrontY - 20,
             life: 0.85,
@@ -918,7 +972,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             <p className="controls-title">CONTROLS (AUTO-GAS)</p>
             <p><strong>A / D</strong> or <strong>LEFT / RIGHT ARROWS</strong> TO STEER</p>
             <p><strong>HOLD LEFT / RIGHT SCREEN</strong> TO STEER (TOUCH/MOUSE)</p>
-            <p><strong>W / UP</strong> NITRO BOOST &bull; <strong>S / DOWN</strong> BRAKE / REV</p>
+            <p><strong>W / UP</strong> NITRO BOOST &bull; <strong>S / DOWN / 2-FINGER TOUCH</strong> BRAKE / REV</p>
 
             <div className="scoring-guide">
               <p className="scoring-title">TARGET DATA</p>
@@ -1074,6 +1128,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           <div className="hud-item timer">TIME: {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</div>
           <div className="hud-actions-row">
             <button
+              className="mute-btn"
+              title="Alternar Áudio"
+              aria-label="Alternar Áudio"
+              onClick={handleToggleMute}
+            >
+              {isMuted ? '🔇' : '🔊'}
+            </button>
+            <button
               className="orientation-btn"
               title="Alternar Orientação Horizontal"
               aria-label="Alternar Orientação Horizontal"
@@ -1087,10 +1149,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                 soundService.playUiSound();
                 if (multiplayerService) {
                   multiplayerService.leave();
-                  if (onBackToMenu) {
-                    onBackToMenu();
-                    return;
-                  }
+                }
+                if (onBackToMenu) {
+                  onBackToMenu();
+                  return;
                 }
                 onGameOver(score);
               }}

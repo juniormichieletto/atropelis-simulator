@@ -3,6 +3,7 @@ class SoundService {
   private musicInterval: number | null = null;
   private isMusicPlaying = false;
   private isMusicPaused = false;
+  private muted = false;
   private noiseBuffer: AudioBuffer | null = null;
 
   // Continuous multi-harmonic car engine sound nodes
@@ -11,6 +12,37 @@ class SoundService {
   private engineOsc3: OscillatorNode | null = null; // Deep exhaust sub-rumble (0.5x triangle)
   private engineFilter: BiquadFilterNode | null = null;
   private engineGain: GainNode | null = null;
+
+  constructor() {
+    try {
+      this.muted = localStorage.getItem('atropelis_muted') === 'true';
+    } catch {
+      this.muted = false;
+    }
+  }
+
+  isMuted(): boolean {
+    return this.muted;
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    try {
+      localStorage.setItem('atropelis_muted', muted ? 'true' : 'false');
+    } catch {
+      // Ignore storage errors
+    }
+    if (muted) {
+      this.stopEngineNodes();
+    } else if (this.isMusicPlaying && !this.isMusicPaused && this.audioCtx) {
+      this.startEngineNodes();
+    }
+  }
+
+  toggleMute(): boolean {
+    this.setMuted(!this.muted);
+    return this.muted;
+  }
 
   private init() {
     if (!this.audioCtx) {
@@ -37,6 +69,7 @@ class SoundService {
   }
 
   playUiSound() {
+    if (this.muted) return;
     this.init();
     if (!this.audioCtx) return;
     const now = this.audioCtx.currentTime;
@@ -56,6 +89,7 @@ class SoundService {
   }
 
   playHitSound(type: 'PERSON' | 'BIKE' | 'MOTORCYCLE' | 'CAR' | 'WALL') {
+    if (this.muted) return;
     this.init();
     if (!this.audioCtx) return;
 
@@ -160,7 +194,7 @@ class SoundService {
    * and exhaust filter resonance.
    */
   updateEngineSound(speed: number, steerAmount: number = 0, isBraking: boolean = false) {
-    if (!this.audioCtx || !this.isMusicPlaying) return;
+    if (this.muted || !this.audioCtx || !this.isMusicPlaying) return;
 
     if (!this.engineOsc1 || !this.engineOsc2 || !this.engineOsc3 || !this.engineGain || !this.engineFilter) {
       this.startEngineNodes();
@@ -272,7 +306,9 @@ class SoundService {
     if (!this.audioCtx || this.isMusicPlaying) return;
     this.isMusicPaused = false;
     this.isMusicPlaying = true;
-    this.startEngineNodes();
+    if (!this.muted) {
+      this.startEngineNodes();
+    }
 
     let step = 0; // 16th-note step counter (128 steps = 8 bars)
     const bpm = 126; // Driving highway synthwave / electronic-rock groove
@@ -317,7 +353,7 @@ class SoundService {
     ];
 
     this.musicInterval = window.setInterval(() => {
-      if (!this.audioCtx) return;
+      if (!this.audioCtx || this.muted) return;
       const now = this.audioCtx.currentTime;
       const bar = Math.floor(step / 16) % 8;
       const stepInBar = step % 16;

@@ -103,10 +103,13 @@ function App() {
         <ScoreboardView onBack={handleBackToMenu} />
       )}
       {currentView === 'GAME' && (
-        <GameCanvas onGameOver={(score) => {
-          LocalStorageService.saveScore(score);
-          setCurrentView('MENU');
-        }} />
+        <GameCanvas
+          onGameOver={(score) => {
+            LocalStorageService.saveScore(score);
+            setCurrentView('MENU');
+          }}
+          onBackToMenu={handleBackToMenu}
+        />
       )}
       {currentView === 'MULTIPLAYER_GAME' && (
         <GameCanvas

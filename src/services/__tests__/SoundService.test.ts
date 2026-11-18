@@ -7,6 +7,8 @@ describe('SoundService', () => {
   });
 
   afterEach(() => {
+    soundService.setMuted(false);
+    localStorage.clear();
     soundService.stopBackgroundMusic();
     vi.useRealTimers();
   });
@@ -66,5 +68,28 @@ describe('SoundService', () => {
     expect(ctx.resume).not.toHaveBeenCalled();
     vi.advanceTimersByTime(500);
     expect(ctx.createOscillator).not.toHaveBeenCalled();
+  });
+
+  it('persists mute state and suppresses UI, hit, engine, and music audio while muted', () => {
+    soundService.startBackgroundMusic();
+    const ctx = (soundService as unknown as { audioCtx: AudioContext }).audioCtx;
+    vi.mocked(ctx.createOscillator).mockClear();
+
+    expect(soundService.isMuted()).toBe(false);
+    const muted = soundService.toggleMute();
+    expect(muted).toBe(true);
+    expect(localStorage.getItem('atropelis_muted')).toBe('true');
+
+    soundService.playUiSound();
+    soundService.playHitSound('PERSON');
+    soundService.updateEngineSound(200, 0, false);
+    vi.advanceTimersByTime(500);
+    expect(ctx.createOscillator).not.toHaveBeenCalled();
+
+    const unmuted = soundService.toggleMute();
+    expect(unmuted).toBe(false);
+    expect(localStorage.getItem('atropelis_muted')).toBe('false');
+    // Unmuting while music is playing restarts engine oscillators
+    expect(ctx.createOscillator).toHaveBeenCalled();
   });
 });
