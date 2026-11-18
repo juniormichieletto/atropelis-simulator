@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { GameCanvas } from '../GameCanvas';
-import { EntityManager } from '../Entities';
+import { Entity, EntityManager } from '../Entities';
 import { TileMap } from '../TileMap';
 import { getPlayerSpawnPoint } from '../SpawnPoints';
 import { soundService } from '../../../services/SoundService';
@@ -534,5 +534,54 @@ describe('GameCanvas Multiplayer Mode', () => {
     const kmh = parseInt(speedSpan?.textContent || '0', 10);
     expect(kmh).toBeGreaterThan(0);
     expect(kmh).toBeLessThanOrEqual(45);
+  });
+
+  it('triggers entity collisions properly when phone is rotated to mobile landscape (H < 520)', () => {
+    const origW = window.innerWidth;
+    const origH = window.innerHeight;
+    Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: 740 });
+    Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: 310 });
+
+    let animationCallback: ((time: number) => void) | null = null;
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      animationCallback = cb;
+      return 1;
+    });
+
+    const playHitSpy = vi.spyOn(soundService, 'playHitSound');
+    let spawnedTarget = false;
+    vi.spyOn(EntityManager.prototype, 'spawnEntity').mockImplementation(function (this: EntityManager) {
+      if (!spawnedTarget) {
+        spawnedTarget = true;
+        const moto = new Entity(530, 850, 'MOTORCYCLE');
+        moto.speed = 0;
+        moto.angle = 0;
+        this.entities.push(moto);
+      }
+    });
+
+    try {
+      render(<GameCanvas onGameOver={vi.fn()} />);
+
+      // Dismiss controls overlay so auto-accelerate activates
+      fireEvent.keyDown(window, { code: 'KeyW', key: 'w' });
+
+      let t = 1000;
+      act(() => {
+        if (animationCallback) {
+          animationCallback(t);
+          for (let i = 0; i < 15; i++) {
+            t += 50;
+            animationCallback(t);
+          }
+        }
+      });
+
+      expect(playHitSpy).toHaveBeenCalledWith('MOTORCYCLE');
+      expect(screen.getByText('SCORE: 5')).toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { writable: true, configurable: true, value: origW });
+      Object.defineProperty(window, 'innerHeight', { writable: true, configurable: true, value: origH });
+    }
   });
 });

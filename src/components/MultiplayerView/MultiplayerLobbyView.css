@@ -3,14 +3,17 @@
   justify-content: center;
   align-items: center;
   width: 100vw;
+  width: 100dvw;
   height: 100vh;
+  height: 100dvh;
+  overflow-y: auto;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   position: relative;
   font-family: 'Press Start 2P', monospace;
   box-sizing: border-box;
-  padding: 20px;
+  padding: max(16px, env(safe-area-inset-top, 16px)) max(16px, env(safe-area-inset-right, 16px)) max(16px, env(safe-area-inset-bottom, 16px)) max(16px, env(safe-area-inset-left, 16px));
 }
 
 .mp-lobby-card {
@@ -21,6 +24,7 @@
   padding: 30px;
   max-width: 720px;
   width: 100%;
+  margin: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -349,4 +353,152 @@
   text-align: center;
   padding: 12px;
   line-height: 1.6;
+}
+
+@media (max-width: 600px) {
+  .mp-lobby-container {
+    padding: 10px;
+  }
+  .mp-lobby-card {
+    padding: 16px 14px;
+  }
+  .mp-title {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+  .mp-subtitle {
+    font-size: 8px;
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+  .mp-setup-section,
+  .mp-room-section {
+    gap: 10px;
+  }
+  .mp-color-picker-box {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .mp-color-btn {
+    width: 26px;
+    height: 26px;
+  }
+  .mp-players-list-box {
+    padding: 10px 12px;
+  }
+  .mp-peers-grid {
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .start-race-btn {
+    font-size: 11px;
+    padding: 12px;
+  }
+  .mp-btn {
+    padding: 10px 12px;
+    font-size: 9px;
+  }
+}
+
+@media (max-height: 520px) {
+  .mp-lobby-container {
+    padding: 6px 12px;
+  }
+  .mp-lobby-card {
+    padding: 10px 16px;
+    max-width: 680px;
+  }
+  .mp-title {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .mp-subtitle {
+    font-size: 7px;
+    margin-bottom: 8px;
+  }
+  .mp-setup-section,
+  .mp-room-section {
+    gap: 6px;
+  }
+  .mp-room-header {
+    padding-bottom: 6px;
+    gap: 6px;
+  }
+  .mp-room-badge {
+    font-size: 9px;
+  }
+  .mp-room-code {
+    font-size: 11px;
+  }
+  .mp-copy-btn {
+    font-size: 7px;
+    padding: 6px 10px;
+  }
+  .mp-color-picker-box {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 6px 10px;
+    gap: 8px;
+  }
+  .mp-label {
+    font-size: 8px;
+  }
+  .mp-color-btn {
+    width: 22px;
+    height: 22px;
+  }
+  .mp-players-list-box {
+    padding: 6px 10px;
+  }
+  .mp-players-list-box h3 {
+    font-size: 8px;
+    margin-bottom: 4px;
+  }
+  .mp-peers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 4px;
+    max-height: 64px;
+    overflow-y: auto;
+  }
+  .mp-peer-card {
+    padding: 5px 8px;
+  }
+  .mp-lobby-footer {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+  }
+  .start-race-btn {
+    font-size: 10px;
+    padding: 8px 12px;
+  }
+  .leave-btn {
+    font-size: 8px;
+    padding: 8px 10px;
+    max-width: 180px;
+  }
+  .mp-actions-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .mp-action-card {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .mp-action-card h3 {
+    font-size: 9px;
+  }
+  .mp-desc {
+    min-height: 0;
+    font-size: 7px;
+  }
+  .mp-input {
+    padding: 6px;
+    font-size: 10px;
+  }
+  .mp-btn {
+    padding: 8px 10px;
+    font-size: 8px;
+  }
 }

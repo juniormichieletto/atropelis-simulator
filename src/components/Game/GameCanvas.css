@@ -1,7 +1,9 @@
 .game-view-container {
   position: relative;
   width: 100vw;
+  width: 100dvw;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background-color: #09051d;
 }
@@ -25,7 +27,9 @@
 
 .game-hud.bottom {
   top: auto;
-  bottom: 24px;
+  bottom: max(16px, calc(10px + env(safe-area-inset-bottom, 0px)));
+  left: max(16px, env(safe-area-inset-left, 16px));
+  right: max(16px, env(safe-area-inset-right, 16px));
 }
 
 .hud-group {
@@ -133,6 +137,9 @@
   border: 4px solid #00e5ff;
   text-align: center;
   box-shadow: 0 0 25px rgba(0, 229, 255, 0.35), 8px 8px 0px #ff2a85;
+  max-width: 92vw;
+  max-height: 90dvh;
+  overflow-y: auto;
 }
 
 .controls-card h3 {
@@ -585,11 +592,57 @@ tr.is-disconnected {
   color: #fff;
 }
 
-@media (max-height: 520px) {
+@media (max-width: 600px) {
+  .hud-item {
+    font-size: 8px;
+    padding: 8px;
+  }
+  .speed {
+    min-width: 120px;
+  }
   .game-hud.bottom {
-    bottom: 8px;
+    bottom: max(12px, calc(8px + env(safe-area-inset-bottom, 0px)));
     left: 10px;
     right: 10px;
+  }
+  .mute-btn,
+  .orientation-btn,
+  .quit-btn {
+    padding: 8px 10px;
+    font-size: 9px;
+    border-width: 2px;
+  }
+  .controls-card {
+    padding: 1.2rem;
+  }
+  .mp-hud-banner {
+    top: 10px;
+    left: 10px;
+    font-size: 7px;
+    padding: 6px 10px;
+  }
+  .mp-score-leaderboard {
+    top: 44px;
+    left: 10px;
+    right: auto;
+    font-size: 6px;
+    padding: 6px 8px;
+    min-width: 130px;
+  }
+  .mp-results-card {
+    padding: 16px;
+    font-size: 7px;
+  }
+  .mp-results-title {
+    font-size: 12px;
+  }
+}
+
+@media (max-height: 520px) {
+  .game-hud.bottom {
+    bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    left: max(10px, env(safe-area-inset-left, 10px));
+    right: max(10px, env(safe-area-inset-right, 10px));
   }
   .hud-group {
     gap: 4px;
@@ -639,7 +692,7 @@ tr.is-disconnected {
   }
   .mp-results-card {
     padding: 12px 18px;
-    max-height: 90vh;
+    max-height: 90dvh;
     overflow-y: auto;
   }
   .mp-results-title {
@@ -655,39 +708,5 @@ tr.is-disconnected {
   .mp-final-table td {
     padding: 4px 5px;
     font-size: 7px;
-  }
-}
-
-@media (max-width: 600px) {
-  .hud-item {
-    font-size: 8px;
-    padding: 8px;
-  }
-  .speed {
-    min-width: 120px;
-  }
-  .game-hud.bottom {
-    bottom: 20px;
-  }
-  .mp-hud-banner {
-    top: 10px;
-    left: 10px;
-    font-size: 7px;
-    padding: 6px 10px;
-  }
-  .mp-score-leaderboard {
-    top: 44px;
-    left: 10px;
-    right: auto;
-    font-size: 6px;
-    padding: 6px 8px;
-    min-width: 130px;
-  }
-  .mp-results-card {
-    padding: 16px;
-    font-size: 7px;
-  }
-  .mp-results-title {
-    font-size: 12px;
   }
 }

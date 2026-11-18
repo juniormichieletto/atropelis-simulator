@@ -9,6 +9,8 @@
   width: 95%;
   max-width: 800px;
   max-height: 85vh;
+  max-height: 90dvh;
+  margin: auto;
   display: flex;
   flex-direction: column;
 }
@@ -113,5 +115,31 @@
   .score-table td {
     padding: 0.8rem;
     font-size: 0.5rem;
+  }
+}
+
+@media (max-height: 520px) {
+  .scoreboard-card {
+    padding: 1rem 1.4rem;
+    max-height: 92dvh;
+  }
+  .scoreboard-card h1 {
+    font-size: 1rem;
+    margin-bottom: 0.6rem;
+  }
+  .sb-tabs {
+    margin-bottom: 0.7rem;
+  }
+  .sb-tab-btn {
+    padding: 6px 12px;
+    font-size: 0.55rem;
+  }
+  .table-wrapper {
+    margin-bottom: 0.8rem;
+  }
+  .score-table th,
+  .score-table td {
+    padding: 0.5rem 0.7rem;
+    font-size: 0.55rem;
   }
 }

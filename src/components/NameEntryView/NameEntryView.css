@@ -8,6 +8,7 @@
   text-align: center;
   width: 90%;
   max-width: 500px;
+  margin: auto;
 }
 
 .name-entry-card h1 {
@@ -56,4 +57,27 @@
 
 .name-entry-card button:hover {
   background-color: #ff4796;
+}
+
+@media (max-height: 520px) {
+  .name-entry-card {
+    padding: 1.2rem 1.8rem;
+  }
+  .name-entry-card h1 {
+    font-size: 1rem;
+    margin-bottom: 0.8rem;
+  }
+  .name-entry-card p {
+    font-size: 0.6rem;
+    margin-bottom: 0.8rem;
+  }
+  .name-entry-card input {
+    padding: 0.8rem;
+    margin-bottom: 0.8rem;
+    font-size: 0.85rem;
+  }
+  .name-entry-card button {
+    padding: 0.8rem;
+    font-size: 0.85rem;
+  }
 }

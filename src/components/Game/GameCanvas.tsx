@@ -44,8 +44,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   multiplayerService,
   onBackToMenu,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [dimensions, setDimensions] = useState({
+    width: Math.round(window.visualViewport?.width || window.innerWidth),
+    height: Math.round(window.visualViewport?.height || window.innerHeight),
+  });
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute in seconds
   const [showControls, setShowControls] = useState(() => !multiplayerService);
@@ -342,13 +346,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     };
 
+    const getViewportSize = () => {
+      const el = containerRef.current;
+      const width =
+        el && el.clientWidth > 0
+          ? el.clientWidth
+          : Math.round(window.visualViewport?.width || window.innerWidth);
+      const height =
+        el && el.clientHeight > 0
+          ? el.clientHeight
+          : Math.round(window.visualViewport?.height || window.innerHeight);
+      return { width, height };
+    };
+
     const handleResize = () => {
-      setDimensions({ width: window.innerWidth, height: window.innerHeight });
-      if (window.innerWidth >= window.innerHeight) {
+      const next = getViewportSize();
+      setDimensions((prev) =>
+        prev.width === next.width && prev.height === next.height ? prev : next
+      );
+      if (next.width >= next.height) {
         setShowRotatePrompt(false);
       }
     };
+    handleResize();
     window.addEventListener('resize', handleResize);
+    window.visualViewport?.addEventListener('resize', handleResize);
 
     const handleOrientationChange = () => {
       handleResize();
@@ -495,6 +517,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       window.removeEventListener('blur', pauseGame);
       window.removeEventListener('focus', resumeGame);
       window.removeEventListener('resize', handleResize);
+      window.visualViewport?.removeEventListener('resize', handleResize);
       window.removeEventListener('orientationchange', handleOrientationChange);
       if (window.screen?.orientation) {
         window.screen.orientation.removeEventListener('change', handleOrientationChange);
@@ -656,8 +679,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const carBottomY = isLandscapeMobile ? H - 52 : H - 78;
     // Visual bumper/fender footprint of the player's car on screen
     const carHalfW = 58 * carScale;
-    const carFrontY = carBottomY - 36 * carScale;
-    const carRearY = carBottomY + 6 * carScale;
+    const carFrontY = carBottomY - (isLandscapeMobile ? 42 : 36) * carScale;
+    const carRearY = carBottomY + (isLandscapeMobile ? 18 : 6) * carScale;
 
     entityManager.update(dt, player.x, player.y, tileMap, player.angle);
 
@@ -667,7 +690,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       const dx = entity.x - camX;
       const dy = entity.y - camY;
       const tz = dx * cosCam + dy * sinCam;
-      if (tz < 18 || tz > 130) return;
+      if (tz < 18 || tz > 260) return;
 
       const tx = -dx * sinCam + dy * cosCam;
       const entityScreenX = W * 0.5 + (tx / tz) * focalLength;
@@ -962,7 +985,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   useGameLoop(update, draw, isPaused);
 
   return (
-    <div className="game-view-container">
+    <div ref={containerRef} className="game-view-container">
       <canvas
         ref={canvasRef}
         width={dimensions.width}
