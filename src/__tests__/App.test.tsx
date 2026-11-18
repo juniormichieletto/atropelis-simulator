@@ -137,4 +137,25 @@ describe('App & GameCanvas Integration', () => {
 
     expect(screen.getByText(/START NEW GAME/i)).toBeInTheDocument();
   });
+
+  it('clears ?sala= query param after leaving lobby so changing name returns to Menu', () => {
+    LocalStorageService.saveName('INVITED_PILOT');
+    window.history.replaceState({}, '', '/?sala=INVITE99');
+
+    render(<App />);
+
+    // Starts directly in Multiplayer Lobby due to ?sala=INVITE99
+    expect(screen.getByText('MULTIPLAYER ONLINE')).toBeInTheDocument();
+
+    // Return to Main Menu -> query param and initialRoom should be cleared
+    fireEvent.click(screen.getByText('VOLTAR AO MENU PRINCIPAL'));
+    expect(screen.getByText(/START NEW GAME/i)).toBeInTheDocument();
+    expect(window.location.search).toBe('');
+
+    // Change name -> returns to Menu instead of being trapped in Multiplayer Lobby
+    fireEvent.click(screen.getByRole('button', { name: /CHANGE NAME/i }));
+    fireEvent.change(screen.getByPlaceholderText(/PILOT NAME/i), { target: { value: 'NEW_ACE' } });
+    fireEvent.click(screen.getByRole('button', { name: /ENGAGE/i }));
+    expect(screen.getByText(/START NEW GAME/i)).toBeInTheDocument();
+  });
 });

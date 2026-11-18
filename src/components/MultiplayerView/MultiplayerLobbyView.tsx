@@ -29,6 +29,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   const [copyFeedback, setCopyFeedback] = useState('');
 
   const serviceRef = useRef<MultiplayerService | null>(null);
+  const hasStartedGameRef = useRef(false);
   const onStartRef = useRef(onStartMultiplayerGame);
   useEffect(() => {
     onStartRef.current = onStartMultiplayerGame;
@@ -49,6 +50,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   };
 
   useEffect(() => {
+    hasStartedGameRef.current = false;
     const service = new MultiplayerService(userName);
     service.setCarColor(selectedColor);
     serviceRef.current = service;
@@ -61,6 +63,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
         }
       },
       onGameStarted: () => {
+        hasStartedGameRef.current = true;
         soundService.playUiSound();
         onStartRef.current(service);
       },
@@ -69,6 +72,12 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
     if (initialRoomCode) {
       void joinRoomInternal(initialRoomCode.toUpperCase());
     }
+
+    return () => {
+      if (!hasStartedGameRef.current) {
+        service.leave();
+      }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userName, initialRoomCode]);
 
@@ -128,6 +137,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
   };
 
   const handleStartGame = () => {
+    hasStartedGameRef.current = true;
     soundService.playUiSound();
     serviceRef.current?.startGame();
   };
@@ -195,6 +205,7 @@ export const MultiplayerLobbyView: React.FC<MultiplayerLobbyViewProps> = ({
               className="mp-btn back-btn"
               onClick={() => {
                 soundService.playUiSound();
+                serviceRef.current?.leave();
                 onBackToMenu();
               }}
             >

@@ -371,15 +371,33 @@ describe('GameCanvas Multiplayer Mode', () => {
 
     const spawn = getPlayerSpawnPoint(0, 12345);
 
-    // Spawn a remote peer directly on top of the player's spawn point
+    // Run frames past initial grace cooldown (2.5s: 27 frames x 0.1s = 2.7s)
+    let t = 1000;
+    act(() => {
+      if (animationCallback) {
+        animationCallback(t);
+        for (let i = 0; i < 27; i++) {
+          t += 100;
+          animationCallback(t);
+        }
+      }
+    });
+
+    const calls = (mockMpService.sendPlayerUpdate as ReturnType<typeof vi.fn>).mock.calls;
+    const prevSent = calls.at(-2)?.[0] as { x: number; y: number; angle: number } | undefined;
+    const lastSent = calls.at(-1)?.[0] as { x: number; y: number; angle: number } | undefined;
+    const stepDx = prevSent && lastSent ? lastSent.x - prevSent.x : 0;
+    const stepDy = prevSent && lastSent ? lastSent.y - prevSent.y : 0;
+
+    // Spawn a remote peer directly in the player's next frame path
     act(() => {
       registeredCallbacks?.onRemotePlayerUpdate?.({
         id: 'peer_target',
         name: 'RivalRacer',
         color: '#00e5ff',
-        x: spawn.x,
-        y: spawn.y,
-        angle: spawn.angle,
+        x: (lastSent?.x ?? spawn.x) + stepDx,
+        y: (lastSent?.y ?? spawn.y) + stepDy,
+        angle: lastSent?.angle ?? spawn.angle,
         speed: 50,
         steerVisual: 0,
         isBraking: false,
@@ -388,15 +406,13 @@ describe('GameCanvas Multiplayer Mode', () => {
       });
     });
 
-    // Run game frames past initial grace cooldown (2.5s: 30 frames x 0.1s = 3.0s)
-    let t = 1000;
+    // Step two frames so the collision triggers regardless of rAF re-registration
     act(() => {
       if (animationCallback) {
+        t += 100;
         animationCallback(t);
-        for (let i = 0; i < 30; i++) {
-          t += 100;
-          animationCallback(t);
-        }
+        t += 100;
+        animationCallback(t);
       }
     });
 
@@ -405,5 +421,35 @@ describe('GameCanvas Multiplayer Mode', () => {
 
     // Local player score received +20 PTS bonus for bumping rival
     expect(screen.getByText(/20 PTS/i)).toBeInTheDocument();
+  });
+
+  it('only plays hit sound for onPlayerHit when local player is the target and skips controls overlay in multiplayer', () => {
+    const playHitSpy = vi.spyOn(soundService, 'playHitSound');
+    let registeredCallbacks: MultiplayerEventCallback | null = null;
+    mockMpService.setCallbacks = vi.fn((callbacks) => {
+      registeredCallbacks = callbacks;
+    });
+
+    render(
+      <GameCanvas
+        multiplayerService={mockMpService as MultiplayerService}
+        onGameOver={vi.fn()}
+      />
+    );
+
+    // Controls overlay should not block multiplayer start
+    expect(screen.queryByText('TOP GEAR 3000 MODE')).not.toBeInTheDocument();
+
+    // Hit between two other peers should be ignored locally
+    act(() => {
+      registeredCallbacks?.onPlayerHit?.('peer_a', 'peer_b');
+    });
+    expect(playHitSpy).not.toHaveBeenCalled();
+
+    // Hit targeting local player triggers crash sound
+    act(() => {
+      registeredCallbacks?.onPlayerHit?.('peer_a', 'local-pilot-id');
+    });
+    expect(playHitSpy).toHaveBeenCalledWith('CAR');
   });
 });

@@ -11,8 +11,17 @@ import { MultiplayerService } from './services/MultiplayerService';
 type View = 'NAME_ENTRY' | 'MENU' | 'GAME' | 'SCOREBOARD' | 'MULTIPLAYER_LOBBY' | 'MULTIPLAYER_GAME';
 
 function App() {
-  const queryParams = new URLSearchParams(window.location.search);
-  const initialRoom = queryParams.get('room') || queryParams.get('sala') || '';
+  const [initialRoom, setInitialRoom] = useState<string>(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    return queryParams.get('room') || queryParams.get('sala') || '';
+  });
+
+  const clearRoomQueryParam = () => {
+    setInitialRoom('');
+    if (window.location.search) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  };
 
   const [currentView, setCurrentView] = useState<View>(() => {
     const hasName = Boolean(LocalStorageService.getName());
@@ -28,6 +37,9 @@ function App() {
     setUserName(name);
     if (initialRoom) {
       setCurrentView('MULTIPLAYER_LOBBY');
+      if (window.location.search) {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
     } else {
       setCurrentView('MENU');
     }
@@ -54,10 +66,12 @@ function App() {
       activeMpService.leave();
       setActiveMpService(null);
     }
+    clearRoomQueryParam();
     setCurrentView('MENU');
   };
 
   const handleStartMultiplayerGame = (service: MultiplayerService) => {
+    clearRoomQueryParam();
     setActiveMpService(service);
     setCurrentView('MULTIPLAYER_GAME');
   };

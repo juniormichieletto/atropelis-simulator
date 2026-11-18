@@ -24,6 +24,26 @@ export interface RemotePlayer {
 export class RemotePlayerManager {
   public players: Map<string, RemotePlayer> = new Map();
 
+  private resolvePalette(color: string) {
+    const matched = MULTIPLAYER_CAR_COLORS.find(
+      (c) => c.main.toLowerCase() === color.toLowerCase()
+    );
+    if (matched) {
+      return {
+        body: matched.main,
+        bodyDark: matched.dark,
+        cabin: matched.dark,
+        accent: matched.accent,
+      };
+    }
+    return {
+      body: color || '#3a86ff',
+      bodyDark: '#023e8a',
+      cabin: '#023e8a',
+      accent: '#00b4d8',
+    };
+  }
+
   updateFromNetwork(data: PlayerNetworkData) {
     let p = this.players.get(data.id);
 
@@ -41,23 +61,10 @@ export class RemotePlayerManager {
     }
 
     if (!p) {
-      // Find matching palette or create custom
-      const matched = MULTIPLAYER_CAR_COLORS.find(c => c.main.toLowerCase() === data.color.toLowerCase()) || {
-        name: 'Custom',
-        main: data.color || '#3a86ff',
-        dark: '#023e8a',
-        accent: '#00b4d8',
-      };
-
       const entity = new Entity(data.x, data.y, 'CAR');
       entity.speed = data.speed;
       entity.angle = data.angle;
-      entity.palette = {
-        body: matched.main,
-        bodyDark: matched.dark,
-        cabin: matched.dark,
-        accent: matched.accent,
-      };
+      entity.palette = this.resolvePalette(data.color);
 
       p = {
         id: data.id,
@@ -88,6 +95,10 @@ export class RemotePlayerManager {
       p.score = Math.max(p.score, data.score);
       p.lastUpdate = Date.now();
       p.name = data.name || p.name;
+      if (data.color && data.color.toLowerCase() !== p.color.toLowerCase()) {
+        p.color = data.color;
+        p.entity.palette = this.resolvePalette(data.color);
+      }
     }
   }
 
@@ -165,13 +176,15 @@ export class RemotePlayerManager {
 
       const screenY = horizonY + (camHeight / tz) * focalLength;
       const s = Math.min(28, focalLength / Math.max(tz, 76));
+      const rayAngle = Math.atan2(tx, tz);
+      const relAngle = p.angle - (camAngle + rayAngle * 0.55);
       const depth = Math.hypot(dx, dy);
 
       drawables.push({
         depth,
         draw: (ctx: CanvasRenderingContext2D) => {
           // 1. Draw 3D Car sprite
-          p.entity.draw3D(ctx, screenX, screenY, s, p.angle - camAngle);
+          p.entity.draw3D(ctx, screenX, screenY, s, relAngle);
 
           // 2. Draw Floating Name Tag & Crown above car
           ctx.save();

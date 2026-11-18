@@ -21,7 +21,7 @@ export interface CarPalette {
   accent: string;
 }
 
-const RIVAL_CAR_PALETTES: CarPalette[] = [
+export const RIVAL_CAR_PALETTES: CarPalette[] = [
   { body: '#ff2a55', bodyDark: '#b8143a', cabin: '#d91e49', accent: '#ffbe0b' }, // Crimson Interceptor
   { body: '#ff6b35', bodyDark: '#bf4319', cabin: '#e05324', accent: '#00e5ff' }, // Solar GT
   { body: '#e84118', bodyDark: '#9c2309', cabin: '#c23616', accent: '#ffee55' }, // Diablo Red
@@ -93,6 +93,26 @@ export class Entity {
         this.color = this.palette.body;
         this.speed = 130;
         break;
+    }
+  }
+
+  /**
+   * Synchronizes entity color and rival car palette from network state.
+   */
+  setCarColor(color: string) {
+    this.color = color;
+    const matched = RIVAL_CAR_PALETTES.find(
+      (p) => p.body.toLowerCase() === color.toLowerCase()
+    );
+    if (matched) {
+      this.palette = matched;
+    } else if (this.type === 'CAR') {
+      this.palette = {
+        body: color,
+        bodyDark: color,
+        cabin: '#191d24',
+        accent: '#00e5ff',
+      };
     }
   }
 

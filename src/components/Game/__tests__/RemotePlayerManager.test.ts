@@ -231,4 +231,41 @@ describe('RemotePlayerManager', () => {
     expect(player.score).toBe(88);
     expect(player.speed).toBe(0);
   });
+
+  it('updates remote player palette when network color changes', () => {
+    const manager = new RemotePlayerManager();
+    manager.updateFromNetwork({
+      id: 'p_color',
+      name: 'Chameleon',
+      color: '#e74c3c',
+      x: 100,
+      y: 100,
+      angle: 0,
+      speed: 80,
+      steerVisual: 0,
+      isBraking: false,
+      score: 10,
+      timestamp: Date.now(),
+    });
+
+    const player = manager.players.get('p_color')!;
+    expect(player.entity.palette.body).toBe('#e74c3c');
+
+    manager.updateFromNetwork({
+      id: 'p_color',
+      name: 'Chameleon',
+      color: '#00e5ff',
+      x: 120,
+      y: 100,
+      angle: 0,
+      speed: 80,
+      steerVisual: 0,
+      isBraking: false,
+      score: 15,
+      timestamp: Date.now(),
+    });
+
+    expect(player.color).toBe('#00e5ff');
+    expect(player.entity.palette.body).toBe('#00e5ff');
+  });
 });

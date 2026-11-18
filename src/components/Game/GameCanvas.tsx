@@ -48,10 +48,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(60); // 1 minute in seconds
-  const [showControls, setShowControls] = useState(true);
+  const [showControls, setShowControls] = useState(() => !multiplayerService);
   const [isPaused, setIsPaused] = useState(() => (multiplayerService ? false : document.hidden));
   const [peerCount, setPeerCount] = useState(() => (multiplayerService ? multiplayerService.getConnectedPeers().length : 1));
-  const [pingMs, setPingMs] = useState<number | null>(null);
+  const pingBadgeRef = useRef<HTMLSpanElement>(null);
   const [mpFinalResults, setMpFinalResults] = useState<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const mpFinalResultsRef = useRef<{ rank: number; racers: MpLeaderboardRacer[] } | null>(null);
   const [liveMpScores, setLiveMpScores] = useState<MpLeaderboardRacer[]>([]);
@@ -195,7 +195,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             if (!local) {
               local = new Entity(n.x, n.y, n.type);
               local.id = n.id;
-              local.color = n.color;
+              local.setCarColor(n.color);
               em.entities.push(local);
             }
             local.x = n.x;
@@ -210,10 +210,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           em.entities = em.entities.filter((e) => remoteIds.has(e.id) || e.isHit);
         }
       },
-      onPlayerHit: (hitterId) => {
-        if (hitterId !== multiplayerService.myId && !mpFinalResultsRef.current) {
+      onPlayerHit: (hitterId, targetId) => {
+        const isTargetMe = targetId ? targetId === multiplayerService.myId : hitterId !== multiplayerService.myId;
+        if (isTargetMe && hitterId !== multiplayerService.myId && !mpFinalResultsRef.current) {
           soundService.playHitSound('CAR');
           shakeTimerRef.current = 0.2;
+          playerRef.current.speed *= 0.65;
         }
       },
       onNpcHit: (npcId, hitterId, hitParams) => {
@@ -445,7 +447,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     if (multiplayerService) {
       const updatePing = async () => {
         const ms = await multiplayerService.getPing();
-        setPingMs(ms);
+        if (pingBadgeRef.current) {
+          const quality = ms === null ? '' : ms < 80 ? 'good' : ms < 160 ? 'medium' : 'poor';
+          pingBadgeRef.current.className = `mp-hud-ping ${quality}`.trim();
+          pingBadgeRef.current.textContent = `📶 ${ms !== null ? `${ms}ms` : '--'}`;
+        }
       };
       void updatePing();
       pingInterval = setInterval(updatePing, 2000);
@@ -934,12 +940,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             <span className="mp-hud-code">SALA: {multiplayerService.roomId}</span>
             <span className="mp-hud-peers">👥 {peerCount}</span>
             <span
-              className={`mp-hud-ping ${
-                pingMs === null ? '' : pingMs < 80 ? 'good' : pingMs < 160 ? 'medium' : 'poor'
-              }`}
+              ref={pingBadgeRef}
+              className="mp-hud-ping"
               title="Latência da conexão P2P (Round-Trip Time)"
             >
-              📶 {pingMs !== null ? `${pingMs}ms` : '--'}
+              📶 --
             </span>
           </div>
 

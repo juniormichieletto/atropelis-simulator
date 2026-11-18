@@ -63,6 +63,7 @@ export class MultiplayerService {
   public isConnected: boolean = false;
   public isColorManuallySelected: boolean = false;
   public spawnSeed: number = 0;
+  public raceStartTime: number = 0;
   public peerOrder: string[] = [];
   public colorAssignments: Record<string, string> = {};
 
@@ -174,6 +175,7 @@ export class MultiplayerService {
 
         // Receive start game signal
         startGameAction.onMessage((msg) => {
+          this.raceStartTime = Date.now();
           if (msg.spawnSeed !== undefined) {
             this.spawnSeed = msg.spawnSeed;
           }
@@ -258,15 +260,27 @@ export class MultiplayerService {
 
   startGame() {
     if (!this.isHost || !this.sendStartGameAction) return;
-    const allPeers = this.getConnectedPeers().map((p) => p.id).sort();
+    const connectedPeers = this.getConnectedPeers();
+    const peerById = new Map(connectedPeers.map((p) => [p.id, p]));
+    const allPeers = connectedPeers.map((p) => p.id).sort();
     const spawnSeed = Math.floor(Math.random() * 1000000) + 1;
     this.spawnSeed = spawnSeed;
     this.peerOrder = allPeers;
+    this.raceStartTime = Date.now();
 
-    // Distribute unique colors deterministically based on peerOrder so every racer has a distinct color
+    // Preserve each racer's chosen lobby color if unclaimed; resolve collisions with first unused color
     const colorAssignments: Record<string, string> = {};
+    const usedColors = new Set<string>();
     allPeers.forEach((peerId, index) => {
-      const assigned = MULTIPLAYER_CAR_COLORS[index % MULTIPLAYER_CAR_COLORS.length].main;
+      const preferred = peerById.get(peerId)?.color;
+      let assigned: string;
+      if (preferred && !usedColors.has(preferred.toLowerCase())) {
+        assigned = preferred;
+      } else {
+        const unused = MULTIPLAYER_CAR_COLORS.find((c) => !usedColors.has(c.main.toLowerCase()));
+        assigned = unused ? unused.main : MULTIPLAYER_CAR_COLORS[index % MULTIPLAYER_CAR_COLORS.length].main;
+      }
+      usedColors.add(assigned.toLowerCase());
       colorAssignments[peerId] = assigned;
     });
 
@@ -401,6 +415,7 @@ export class MultiplayerService {
     this.peerOrder = [];
     this.colorAssignments = {};
     this.spawnSeed = 0;
+    this.raceStartTime = 0;
     this.isConnected = false;
     this.roomId = '';
   }

@@ -156,9 +156,37 @@ describe('MultiplayerService', () => {
 
     // Host starts game: automatically assigns unique colors to all peers
     service.startGame();
-    expect(service.colorAssignments[service.myId]).toBeDefined();
-    expect(service.colorAssignments['peer_1']).toBeDefined();
+    expect(service.raceStartTime).toBeGreaterThan(0);
+    expect(service.colorAssignments[service.myId]).toBe(MULTIPLAYER_CAR_COLORS[1].main);
+    expect(service.colorAssignments['peer_1']).toBe(MULTIPLAYER_CAR_COLORS[0].main);
     expect(service.colorAssignments[service.myId]).not.toBe(service.colorAssignments['peer_1']);
+
+    service.leave();
+    expect(service.raceStartTime).toBe(0);
+  });
+
+  it('preserves distinct manually chosen lobby colors on startGame and resolves duplicate conflicts', async () => {
+    const service = new MultiplayerService('Host');
+    await service.join('CUSTOM_COLOR', true);
+
+    const chosenHostColor = MULTIPLAYER_CAR_COLORS[3].main;
+    const chosenPeerColor = MULTIPLAYER_CAR_COLORS[4].main;
+    service.setCarColor(chosenHostColor, true);
+
+    const peersMap = (service as unknown as {
+      peers: Map<string, { id: string; name: string; color: string; isHost: boolean; isReady: boolean }>;
+    }).peers;
+    peersMap.set('peer_a', { id: 'peer_a', name: 'A', color: chosenPeerColor, isHost: false, isReady: true });
+    peersMap.set('peer_b', { id: 'peer_b', name: 'B', color: chosenPeerColor, isHost: false, isReady: true });
+
+    service.startGame();
+
+    // Host and peer_a keep their distinct chosen colors; peer_b is reassigned to an unused color
+    expect(service.colorAssignments[service.myId]).toBe(chosenHostColor);
+    expect(service.colorAssignments['peer_a']).toBe(chosenPeerColor);
+    expect(service.colorAssignments['peer_b']).toBeDefined();
+    expect(service.colorAssignments['peer_b']).not.toBe(chosenPeerColor);
+    expect(service.colorAssignments['peer_b']).not.toBe(chosenHostColor);
 
     service.leave();
   });

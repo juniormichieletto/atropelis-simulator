@@ -231,4 +231,16 @@ describe('Entity & EntityManager', () => {
     manager.update(0.1, 450, 850, map, 0);
     expect(manager.entities.length).toBe(15);
   });
+
+  it('synchronizes rival car palette via setCarColor for known and custom colors', () => {
+    const car = new Entity(100, 100, 'CAR');
+    car.setCarColor('#ff6b35');
+    expect(car.color).toBe('#ff6b35');
+    expect(car.palette.body).toBe('#ff6b35');
+    expect(car.palette.accent).toBe('#00e5ff');
+
+    car.setCarColor('#123456');
+    expect(car.color).toBe('#123456');
+    expect(car.palette.body).toBe('#123456');
+  });
 });

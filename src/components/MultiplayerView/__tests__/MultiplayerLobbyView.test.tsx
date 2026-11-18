@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MultiplayerLobbyView } from '../MultiplayerLobbyView';
 
+const mockLeave = vi.fn();
+
 vi.mock('trystero', () => {
   return {
     joinRoom: vi.fn(() => ({
@@ -13,7 +15,7 @@ vi.mock('trystero', () => {
       })),
       onPeerJoin: vi.fn(),
       onPeerLeave: vi.fn(),
-      leave: vi.fn(),
+      leave: mockLeave,
     })),
   };
 });
@@ -111,5 +113,24 @@ describe('MultiplayerLobbyView', () => {
     await waitFor(() => {
       expect(screen.getByText(/SALA:/i)).toBeInTheDocument();
     });
+  });
+
+  it('leaves the P2P room cleanly when unmounted before starting the match', async () => {
+    const { unmount } = render(
+      <MultiplayerLobbyView
+        userName="LeaverUser"
+        onStartMultiplayerGame={vi.fn()}
+        onBackToMenu={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText('CRIAR SALA'));
+    await waitFor(() => {
+      expect(screen.getByText(/SALA:/i)).toBeInTheDocument();
+    });
+
+    mockLeave.mockClear();
+    unmount();
+    expect(mockLeave).toHaveBeenCalledTimes(1);
   });
 });
